@@ -17,6 +17,7 @@ on:
       - 'MULAI_MeTube-SRT.bat'
       - 'HENTIKAN_MeTube-SRT.bat'
       - 'UPDATE_MeTube-SRT.bat'
+      - 'VERSI_IMAGE.txt'
       - 'README.md'
       - 'LICENSE'
       - 'pyproject.toml'
@@ -34,7 +35,25 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
+      - name: Resolve package version
+        id: version
+        shell: bash
+        run: |
+          set -euo pipefail
+          if [[ "$GITHUB_REF" == refs/tags/v* ]]; then
+            echo "image_tag=${GITHUB_REF_NAME}" >> "$GITHUB_OUTPUT"
+            echo "zip_name=MeTube-SRT-Windows-${GITHUB_REF_NAME}.zip" >> "$GITHUB_OUTPUT"
+            echo "display_version=${GITHUB_REF_NAME}" >> "$GITHUB_OUTPUT"
+          else
+            echo "image_tag=latest" >> "$GITHUB_OUTPUT"
+            echo "zip_name=MeTube-SRT-Windows.zip" >> "$GITHUB_OUTPUT"
+            echo "display_version=development-${GITHUB_SHA::7}" >> "$GITHUB_OUTPUT"
+          fi
+
       - name: Prepare Windows portable folder
+        env:
+          IMAGE_TAG: ${{ steps.version.outputs.image_tag }}
+          DISPLAY_VERSION: ${{ steps.version.outputs.display_version }}
         run: |
           set -euo pipefail
           rm -rf dist
@@ -49,27 +68,43 @@ jobs:
             --exclude='ui/node_modules' \
             --exclude='**/__pycache__' \
             --exclude='*.pyc'
+          printf '%s\n' "$IMAGE_TAG" > dist/MeTube-SRT-Windows/VERSI_IMAGE.txt
           printf 'Folder hasil download MeTube-SRT. Jangan hapus folder ini jika ingin menyimpan hasil.\n' > dist/MeTube-SRT-Windows/downloads/README.txt
-          printf 'MeTube-SRT Windows package\nCommit: %s\n\n1. Install dan jalankan Docker Desktop.\n2. Double-click MULAI_MeTube-SRT.bat.\n3. Browser akan membuka http://localhost:8081.\n4. Centang Download subtitle (SRT) jika ingin video + SRT.\n' "${GITHUB_SHA}" > dist/MeTube-SRT-Windows/PETUNJUK_CEPAT.txt
+          printf 'MeTube-SRT Windows %s\nCommit: %s\nImage tag: %s\n\n1. Install dan jalankan Docker Desktop.\n2. Double-click MULAI_MeTube-SRT.bat.\n3. Browser akan membuka http://localhost:8081.\n4. Centang Download subtitle (SRT) jika ingin video + SRT.\n5. UPDATE_MeTube-SRT.bat hanya berpindah ke GitHub Release stabil terbaru.\n' "$DISPLAY_VERSION" "$GITHUB_SHA" "$IMAGE_TAG" > dist/MeTube-SRT-Windows/PETUNJUK_CEPAT.txt
 
-      - name: Create ZIP
+      - name: Create ZIP and checksum
+        env:
+          ZIP_NAME: ${{ steps.version.outputs.zip_name }}
         run: |
+          set -euo pipefail
           cd dist
-          zip -r -9 MeTube-SRT-Windows.zip MeTube-SRT-Windows
+          zip -r -9 "$ZIP_NAME" MeTube-SRT-Windows
+          sha256sum "$ZIP_NAME" > "$ZIP_NAME.sha256"
 
-      - name: Verify ZIP contents
+      - name: Verify ZIP contents and checksum
+        env:
+          ZIP_NAME: ${{ steps.version.outputs.zip_name }}
+          IMAGE_TAG: ${{ steps.version.outputs.image_tag }}
         run: |
-          unzip -l dist/MeTube-SRT-Windows.zip | tee dist/zip-contents.txt
-          unzip -l dist/MeTube-SRT-Windows.zip | grep -q 'MULAI_MeTube-SRT.bat'
-          unzip -l dist/MeTube-SRT-Windows.zip | grep -q 'docker-compose.release.yml'
-          unzip -l dist/MeTube-SRT-Windows.zip | grep -q 'app/'
-          unzip -l dist/MeTube-SRT-Windows.zip | grep -q 'ui/'
+          set -euo pipefail
+          unzip -l "dist/$ZIP_NAME" | tee dist/zip-contents.txt
+          unzip -l "dist/$ZIP_NAME" | grep -q 'MULAI_MeTube-SRT.bat'
+          unzip -l "dist/$ZIP_NAME" | grep -q 'HENTIKAN_MeTube-SRT.bat'
+          unzip -l "dist/$ZIP_NAME" | grep -q 'UPDATE_MeTube-SRT.bat'
+          unzip -l "dist/$ZIP_NAME" | grep -q 'VERSI_IMAGE.txt'
+          unzip -l "dist/$ZIP_NAME" | grep -q 'docker-compose.release.yml'
+          unzip -l "dist/$ZIP_NAME" | grep -q 'app/'
+          unzip -l "dist/$ZIP_NAME" | grep -q 'ui/'
+          test "$(unzip -p "dist/$ZIP_NAME" MeTube-SRT-Windows/VERSI_IMAGE.txt | tr -d '\r\n')" = "$IMAGE_TAG"
+          (cd dist && sha256sum -c "$ZIP_NAME.sha256")
 
       - name: Upload Windows ZIP artifact
         uses: actions/upload-artifact@v4
         with:
           name: MeTube-SRT-Windows
-          path: dist/MeTube-SRT-Windows.zip
+          path: |
+            dist/${{ steps.version.outputs.zip_name }}
+            dist/${{ steps.version.outputs.zip_name }}.sha256
           if-no-files-found: error
           retention-days: 30
 
@@ -77,9 +112,20 @@ jobs:
         if: startsWith(github.ref, 'refs/tags/v')
         env:
           GH_TOKEN: ${{ github.token }}
+          ZIP_NAME: ${{ steps.version.outputs.zip_name }}
         run: |
-          gh release create "$GITHUB_REF_NAME" \
-            dist/MeTube-SRT-Windows.zip \
-            --repo "$GITHUB_REPOSITORY" \
-            --title "MeTube-SRT $GITHUB_REF_NAME" \
-            --generate-notes
+          set -euo pipefail
+          if gh release view "$GITHUB_REF_NAME" --repo "$GITHUB_REPOSITORY" >/dev/null 2>&1; then
+            gh release upload "$GITHUB_REF_NAME" \
+              "dist/$ZIP_NAME" \
+              "dist/$ZIP_NAME.sha256" \
+              --repo "$GITHUB_REPOSITORY" \
+              --clobber
+          else
+            gh release create "$GITHUB_REF_NAME" \
+              "dist/$ZIP_NAME" \
+              "dist/$ZIP_NAME.sha256" \
+              --repo "$GITHUB_REPOSITORY" \
+              --title "MeTube-SRT $GITHUB_REF_NAME" \
+              --generate-notes
+          fi
