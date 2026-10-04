@@ -1,0 +1,13 @@
+services:
+  metube-srt:
+    build:
+      context: .
+      args:
+        VERSION: local
+    image: metube-srt:local
+    container_name: metube-srt
+    restart: unless-stopped
+    ports:
+      - "8081:8081"
+    volumes:
+      - ./downloads:/downloads
