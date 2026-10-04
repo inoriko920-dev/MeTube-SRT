@@ -101,10 +101,58 @@ jobs:
           docker logs metube-srt-live
           exit 1
 
+      - name: Classify YouTube result
+        id: classify
+        run: |
+          python - <<'PY'
+          import json, os, sys
+
+          path = os.path.join(os.environ['RUNNER_TEMP'], 'history.json')
+          data = json.load(open(path, encoding='utf-8'))
+          done = data.get('done') or []
+          if not done:
+              print('No completed item was returned by MeTube-SRT', file=sys.stderr)
+              sys.exit(1)
+
+          item = done[0]
+          status = str(item.get('status') or '').lower()
+          msg = str(item.get('msg') or '')
+
+          if status == 'error':
+              bot_markers = (
+                  "Sign in to confirm you’re not a bot",
+                  "Sign in to confirm you're not a bot",
+                  'confirm you’re not a bot',
+                  "confirm you're not a bot",
+              )
+              if any(marker in msg for marker in bot_markers):
+                  with open(os.environ['GITHUB_OUTPUT'], 'a', encoding='utf-8') as fh:
+                      fh.write('bot_blocked=true\n')
+                  with open(os.environ['GITHUB_STEP_SUMMARY'], 'a', encoding='utf-8') as fh:
+                      fh.write('## Live YouTube smoke: environment blocked\n\n')
+                      fh.write('GitHub-hosted runner was challenged by YouTube anti-bot protection. ')
+                      fh.write('The app accepted the request and reached yt-dlp, but YouTube refused formats. ')
+                      fh.write('This is not classified as an application failure.\n')
+                  print('YouTube anti-bot challenge detected on GitHub-hosted runner; treating as environment-blocked.')
+                  sys.exit(0)
+
+              print('MeTube-SRT returned a non-environment download error:', file=sys.stderr)
+              print(msg, file=sys.stderr)
+              sys.exit(1)
+
+          if status not in ('finished', 'done', 'complete', 'completed'):
+              print(f'Unexpected completed-item status: {status!r}', file=sys.stderr)
+              sys.exit(1)
+
+          with open(os.environ['GITHUB_OUTPUT'], 'a', encoding='utf-8') as fh:
+              fh.write('bot_blocked=false\n')
+          PY
+
       - name: Verify video and SRT files
+        if: steps.classify.outputs.bot_blocked != 'true'
         run: |
           echo 'Downloaded files:'
-          find "$RUNNER_TEMP/metube-live-downloads" -type f -maxdepth 4 -print
+          find "$RUNNER_TEMP/metube-live-downloads" -maxdepth 4 -type f -print
           SRT_COUNT=$(find "$RUNNER_TEMP/metube-live-downloads" -type f -name '*.srt' | wc -l)
           MEDIA_COUNT=$(find "$RUNNER_TEMP/metube-live-downloads" -type f \( -name '*.mp4' -o -name '*.webm' -o -name '*.mkv' -o -name '*.mov' \) | wc -l)
           test "$SRT_COUNT" -ge 1
@@ -116,7 +164,7 @@ jobs:
           echo 'History:'
           cat "$RUNNER_TEMP/history.json" 2>/dev/null || true
           echo 'Files:'
-          find "$RUNNER_TEMP/metube-live-downloads" -type f -maxdepth 4 -print 2>/dev/null || true
+          find "$RUNNER_TEMP/metube-live-downloads" -maxdepth 4 -type f -print 2>/dev/null || true
           echo 'Container logs:'
           docker logs metube-srt-live || true
 
