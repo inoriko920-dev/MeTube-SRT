@@ -1,0 +1,85 @@
+name: Build Windows ZIP
+
+on:
+  push:
+    branches:
+      - main
+    tags:
+      - 'v*'
+    paths:
+      - 'app/**'
+      - 'ui/**'
+      - 'scripts/**'
+      - 'Dockerfile'
+      - 'docker-entrypoint.sh'
+      - 'docker-compose.yml'
+      - 'docker-compose.release.yml'
+      - 'MULAI_MeTube-SRT.bat'
+      - 'HENTIKAN_MeTube-SRT.bat'
+      - 'UPDATE_MeTube-SRT.bat'
+      - 'README.md'
+      - 'LICENSE'
+      - 'pyproject.toml'
+      - 'uv.lock'
+      - '.github/workflows/windows-package.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  package:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Prepare Windows portable folder
+        run: |
+          set -euo pipefail
+          rm -rf dist
+          mkdir -p dist/MeTube-SRT-Windows/downloads
+          rsync -a ./ dist/MeTube-SRT-Windows/ \
+            --exclude='.git' \
+            --exclude='.github' \
+            --exclude='dist' \
+            --exclude='downloads' \
+            --exclude='.venv' \
+            --exclude='node_modules' \
+            --exclude='ui/node_modules' \
+            --exclude='**/__pycache__' \
+            --exclude='*.pyc'
+          printf 'Folder hasil download MeTube-SRT. Jangan hapus folder ini jika ingin menyimpan hasil.\n' > dist/MeTube-SRT-Windows/downloads/README.txt
+          printf 'MeTube-SRT Windows package\nCommit: %s\n\n1. Install dan jalankan Docker Desktop.\n2. Double-click MULAI_MeTube-SRT.bat.\n3. Browser akan membuka http://localhost:8081.\n4. Centang Download subtitle (SRT) jika ingin video + SRT.\n' "${GITHUB_SHA}" > dist/MeTube-SRT-Windows/PETUNJUK_CEPAT.txt
+
+      - name: Create ZIP
+        run: |
+          cd dist
+          zip -r -9 MeTube-SRT-Windows.zip MeTube-SRT-Windows
+
+      - name: Verify ZIP contents
+        run: |
+          unzip -l dist/MeTube-SRT-Windows.zip | tee dist/zip-contents.txt
+          unzip -l dist/MeTube-SRT-Windows.zip | grep -q 'MULAI_MeTube-SRT.bat'
+          unzip -l dist/MeTube-SRT-Windows.zip | grep -q 'docker-compose.release.yml'
+          unzip -l dist/MeTube-SRT-Windows.zip | grep -q 'app/'
+          unzip -l dist/MeTube-SRT-Windows.zip | grep -q 'ui/'
+
+      - name: Upload Windows ZIP artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: MeTube-SRT-Windows
+          path: dist/MeTube-SRT-Windows.zip
+          if-no-files-found: error
+          retention-days: 30
+
+      - name: Publish ZIP to GitHub Release for version tags
+        if: startsWith(github.ref, 'refs/tags/v')
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release create "$GITHUB_REF_NAME" \
+            dist/MeTube-SRT-Windows.zip \
+            --repo "$GITHUB_REPOSITORY" \
+            --title "MeTube-SRT $GITHUB_REF_NAME" \
+            --generate-notes
