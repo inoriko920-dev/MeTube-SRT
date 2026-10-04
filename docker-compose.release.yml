@@ -1,6 +1,6 @@
 services:
   metube-srt:
-    image: ghcr.io/inoriko920-dev/metube-srt:latest
+    image: ghcr.io/inoriko920-dev/metube-srt:${METUBE_SRT_IMAGE_TAG:-latest}
     container_name: metube-srt
     restart: unless-stopped
     ports:
