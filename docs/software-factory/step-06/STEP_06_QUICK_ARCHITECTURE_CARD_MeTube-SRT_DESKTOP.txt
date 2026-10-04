@@ -1,0 +1,21 @@
+STEP 06 — QUICK ARCHITECTURE CARD
+MeTube-SRT Desktop
+STATUS: PASS_WITH_PROVISIONAL
+
+UI: Python + PySide6 / Qt Widgets
+RUNTIME: Windows desktop native; no browser/localhost/Docker
+DOWNLOAD: yt-dlp Python API inside isolated child worker process
+YOUTUBE JS: yt-dlp-ejs + bundled Deno
+MEDIA: FFmpeg + ffprobe external binaries
+SUBTITLE: manual/creator -> original auto-generated -> none; never auto-translate
+QUEUE: durable app-owned queue; default concurrency 2
+PERSISTENCE: SQLite + atomic settings JSON
+AI: official google-genai behind AIProviderPort; structured plan -> verify -> preview -> approve -> command
+100 KEYS: credential profiles; raw secrets in Windows Credential Locker; capacity is not 100x quota
+429: project-aware cooldown; blind same-project key rotation disabled
+COOKIE/AUTH: browser integration or user-owned file reference; never log cookie values
+PACKAGING: pyside6-deploy/Nuitka standalone multi-file folder -> ZIP
+UPDATE: desktop-specific GitHub Release manifest + SHA-256 + explicit approval
+LICENSE: current repo AGPLv3 baseline; no relicense in STEP 06
+PROVISIONAL: exact dependency versions, exact Gemini model ID, final updater implementation
+NEXT: STEP 07 — Code Constitution & Repository Architecture
