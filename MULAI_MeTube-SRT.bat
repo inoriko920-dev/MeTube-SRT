@@ -26,18 +26,24 @@ if errorlevel 1 (
 
 if not exist downloads mkdir downloads
 
-echo [1/3] Mencoba image rilis terbaru dari GHCR...
-docker pull ghcr.io/inoriko920-dev/metube-srt:latest >nul 2>&1
+set "METUBE_SRT_IMAGE_TAG=latest"
+if exist VERSI_IMAGE.txt set /p METUBE_SRT_IMAGE_TAG=<VERSI_IMAGE.txt
+if "%METUBE_SRT_IMAGE_TAG%"=="" set "METUBE_SRT_IMAGE_TAG=latest"
+
+if /I "%METUBE_SRT_IMAGE_TAG%"=="local" goto LOCAL_BUILD
+
+echo [1/3] Mencoba image GHCR versi %METUBE_SRT_IMAGE_TAG%...
+docker pull ghcr.io/inoriko920-dev/metube-srt:%METUBE_SRT_IMAGE_TAG% >nul 2>&1
 if errorlevel 1 goto LOCAL_BUILD
 
-echo [2/3] Menyalakan MeTube-SRT dari image rilis...
+echo [2/3] Menyalakan MeTube-SRT versi %METUBE_SRT_IMAGE_TAG%...
 docker compose -f docker-compose.release.yml up -d
 if errorlevel 1 goto FAILED
-set "MODE=release"
+set "MODE=release %METUBE_SRT_IMAGE_TAG%"
 goto WAIT_APP
 
 :LOCAL_BUILD
-echo       Pull GHCR tidak tersedia. Fallback ke build lokal.
+echo       Image rilis tidak tersedia atau mode lokal dipilih. Fallback ke build lokal.
 echo [2/3] Build dan menyalakan dari source lokal...
 docker compose up -d --build
 if errorlevel 1 goto FAILED
