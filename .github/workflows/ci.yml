@@ -17,7 +17,27 @@ jobs:
         uses: actions/checkout@v4
 
       - name: Validate Docker Compose
-        run: docker compose config
+        run: |
+          docker compose config
+          docker compose -f docker-compose.release.yml config
+
+      - name: Validate Windows launchers
+        shell: pwsh
+        run: |
+          $required = @(
+            'MULAI_MeTube-SRT.bat',
+            'HENTIKAN_MeTube-SRT.bat',
+            'UPDATE_MeTube-SRT.bat'
+          )
+          foreach ($path in $required) {
+            if (-not (Test-Path $path)) {
+              throw "Windows launcher missing: $path"
+            }
+            $text = Get-Content $path -Raw
+            if ($text -notmatch '(?i)docker') {
+              throw "Windows launcher does not invoke Docker: $path"
+            }
+          }
 
       - name: Validate Windows smoke script syntax
         shell: pwsh
