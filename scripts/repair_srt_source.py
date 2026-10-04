@@ -1,10 +1,5 @@
 #!/usr/bin/env python3
-"""One-time deterministic repair for the initial MeTube-SRT bootstrap.
-
-Removes a duplicated keyword introduced by the first overlay and ensures the
-subtitle flag is propagated into each playlist/channel child item. It also
-amends the reusable overlay script so future rebases do not recreate the bug.
-"""
+"""One-time repair for the initial MeTube-SRT bootstrap output."""
 
 from pathlib import Path
 
@@ -16,65 +11,43 @@ def replace_once(text: str, old: str, new: str, label: str) -> str:
     return text.replace(old, new, 1)
 
 
-ytdl = Path("app/ytdl.py")
-s = ytdl.read_text(encoding="utf-8")
+path = Path("app/ytdl.py")
+text = path.read_text(encoding="utf-8")
 
-s = replace_once(
-    s,
+# The initial overlay accidentally supplied download_subtitles twice to one
+# DownloadInfo constructor. Keep the earlier keyword and remove this duplicate.
+old = (
     "                video_password=video_password,\n"
     "                download_subtitles=download_subtitles,\n"
     "            )\n"
-    "            error = await self.__add_download(dl, auto_start)",
+    "            error = await self.__add_download(dl, auto_start)"
+)
+new = (
     "                video_password=video_password,\n"
     "            )\n"
-    "            error = await self.__add_download(dl, auto_start)",
-    "duplicate DownloadInfo keyword",
+    "            error = await self.__add_download(dl, auto_start)"
 )
+text = replace_once(text, old, new, "duplicate DownloadInfo keyword")
 
-s = replace_once(
-    s,
+# Propagate the checkbox into each playlist/channel child download.
+old = (
     "                        sponsorblock=sponsorblock,\n"
     "                        audio_tags=audio_tags,\n"
     "                        video_password=video_password,\n"
     "                    )\n"
     "                )\n"
-    "            if any(res['status'] == 'error' for res in results):",
+    "            if any(res['status'] == 'error' for res in results):"
+)
+new = (
     "                        sponsorblock=sponsorblock,\n"
     "                        audio_tags=audio_tags,\n"
     "                        video_password=video_password,\n"
     "                        download_subtitles=download_subtitles,\n"
     "                    )\n"
     "                )\n"
-    "            if any(res['status'] == 'error' for res in results):",
-    "playlist/channel subtitle propagation",
+    "            if any(res['status'] == 'error' for res in results):"
 )
+text = replace_once(text, old, new, "playlist/channel subtitle propagation")
 
-ytdl.write_text(s, encoding="utf-8")
-
-patch = Path("scripts/apply_patch.py")
-p = patch.read_text(encoding="utf-8")
-marker = 'print("MeTube-SRT patch applied successfully")'
-if marker not in p:
-    raise RuntimeError("apply_patch.py success marker not found")
-
-if "Final normalization for shared MeTube call tails" not in p:
-    normalization = r'''
-# Final normalization for shared MeTube call tails. Earlier replacements touch
-# similar call endings; these two targeted edits make the intended result
-# explicit and reproducible on the pinned clean upstream source.
-replace_once(
-    "app/ytdl.py",
-    '''                video_password=video_password,\n                download_subtitles=download_subtitles,\n            )\n            error = await self.__add_download(dl, auto_start)''',
-    '''                video_password=video_password,\n            )\n            error = await self.__add_download(dl, auto_start)''',
-)
-replace_once(
-    "app/ytdl.py",
-    '''                        sponsorblock=sponsorblock,\n                        audio_tags=audio_tags,\n                        video_password=video_password,\n                    )\n                )\n            if any(res['status'] == 'error' for res in results):''',
-    '''                        sponsorblock=sponsorblock,\n                        audio_tags=audio_tags,\n                        video_password=video_password,\n                        download_subtitles=download_subtitles,\n                    )\n                )\n            if any(res['status'] == 'error' for res in results):''',
-)
-
-'''
-    p = p.replace(marker, normalization + marker, 1)
-    patch.write_text(p, encoding="utf-8")
-
-print("MeTube-SRT source repaired")
+path.write_text(text, encoding="utf-8")
+print("MeTube-SRT backend source repaired")
