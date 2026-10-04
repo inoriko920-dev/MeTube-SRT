@@ -2019,6 +2019,7 @@ class DownloadQueue:
                         sponsorblock=sponsorblock,
                         audio_tags=audio_tags,
                         video_password=video_password,
+                        download_subtitles=download_subtitles,
                     )
                 )
             if any(res['status'] == 'error' for res in results):
@@ -2065,7 +2066,6 @@ class DownloadQueue:
                 sponsorblock=sponsorblock,
                 audio_tags=audio_tags,
                 video_password=video_password,
-                download_subtitles=download_subtitles,
             )
             error = await self.__add_download(dl, auto_start)
             if error is not None:
