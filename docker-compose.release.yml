@@ -1,0 +1,9 @@
+services:
+  metube-srt:
+    image: ghcr.io/inoriko920-dev/metube-srt:latest
+    container_name: metube-srt
+    restart: unless-stopped
+    ports:
+      - "8081:8081"
+    volumes:
+      - ./downloads:/downloads
