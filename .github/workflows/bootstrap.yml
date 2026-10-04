@@ -1,0 +1,62 @@
+name: Bootstrap MeTube-SRT source
+
+on:
+  push:
+    branches: [main]
+
+permissions:
+  contents: write
+
+jobs:
+  bootstrap:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Detect completed bootstrap
+        id: state
+        shell: bash
+        run: |
+          if [[ -f app/main.py ]]; then
+            echo "done=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "done=false" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Import pinned MeTube upstream
+        if: steps.state.outputs.done != 'true'
+        env:
+          UPSTREAM_COMMIT: a3896604540223ecbb8258b41b1d745d62647d16
+        shell: bash
+        run: |
+          set -euo pipefail
+          git clone --no-tags https://github.com/alexta69/metube.git /tmp/metube
+          git -C /tmp/metube checkout "$UPSTREAM_COMMIT"
+
+          # Keep this repository's workflow/patch tooling, but import the full
+          # application source and all upstream tests/docs/license.
+          rsync -a \
+            --exclude '.git' \
+            --exclude '.github/workflows' \
+            /tmp/metube/ ./
+
+          python scripts/apply_patch.py .
+          printf '%s\n' "$UPSTREAM_COMMIT" > UPSTREAM_COMMIT
+
+      - name: Commit imported source
+        if: steps.state.outputs.done != 'true'
+        shell: bash
+        run: |
+          set -euo pipefail
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add -A
+          if git diff --cached --quiet; then
+            echo "Nothing to commit"
+            exit 0
+          fi
+          git commit -m "feat: bootstrap MeTube-SRT from pinned upstream"
+          git push origin HEAD:main
