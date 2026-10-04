@@ -43,7 +43,31 @@ jobs:
             --exclude '.github/workflows' \
             /tmp/metube/ ./
 
+          # dl_formats.py contains the same captions condition in get_format()
+          # and get_opts(). The patch targets get_opts(); make the earlier one
+          # temporarily unique so the strict patch guard can select one block.
+          python - <<'PY'
+          from pathlib import Path
+          p = Path('app/dl_formats.py')
+          s = p.read_text(encoding='utf-8')
+          old = '    if download_type == "captions":\n        return "bestaudio/best"\n'
+          new = '    if download_type == "captions":  # METUBE_SRT_BOOTSTRAP_SENTINEL\n        return "bestaudio/best"\n'
+          if s.count(old) != 1:
+              raise SystemExit(f'Could not disambiguate captions get_format block: {s.count(old)} matches')
+          p.write_text(s.replace(old, new, 1), encoding='utf-8')
+          PY
+
           python scripts/apply_patch.py .
+
+          python - <<'PY'
+          from pathlib import Path
+          p = Path('app/dl_formats.py')
+          s = p.read_text(encoding='utf-8')
+          s = s.replace('    if download_type == "captions":  # METUBE_SRT_BOOTSTRAP_SENTINEL\n',
+                        '    if download_type == "captions":\n', 1)
+          p.write_text(s, encoding='utf-8')
+          PY
+
           printf '%s\n' "$UPSTREAM_COMMIT" > UPSTREAM_COMMIT
 
       - name: Commit imported source
