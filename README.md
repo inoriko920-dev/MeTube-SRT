@@ -4,13 +4,15 @@ MeTube-SRT adalah turunan kecil dari [MeTube](https://github.com/alexta69/metube
 
 ## Rilis Windows terbaru
 
-Rilis stabil pertama: **v1.0.0**
+Buka halaman **Latest Release**:
 
-- Release: https://github.com/inoriko920-dev/MeTube-SRT/releases/tag/v1.0.0
-- ZIP Windows: https://github.com/inoriko920-dev/MeTube-SRT/releases/download/v1.0.0/MeTube-SRT-Windows-v1.0.0.zip
-- SHA-256: https://github.com/inoriko920-dev/MeTube-SRT/releases/download/v1.0.0/MeTube-SRT-Windows-v1.0.0.zip.sha256
+https://github.com/inoriko920-dev/MeTube-SRT/releases/latest
 
-Cara paling mudah: download ZIP, ekstrak, pastikan Docker Desktop aktif, lalu double-click `MULAI_MeTube-SRT.bat`.
+Cara paling mudah: download ZIP Windows dari release terbaru, ekstrak, pastikan Docker Desktop aktif, lalu double-click `MULAI_MeTube-SRT.bat`.
+
+Setiap ZIP release dikunci ke Docker image dengan tag versi yang sama melalui `VERSI_IMAGE.txt`. Jadi paket `v1.0.1`, misalnya, akan menjalankan image `v1.0.1` dan tidak diam-diam bergeser ke `latest`.
+
+Riwayat perubahan ada di [`CHANGELOG.md`](CHANGELOG.md).
 
 Saat opsi SRT aktif:
 
@@ -27,12 +29,13 @@ Baseline upstream yang dipakai tercatat di [`UPSTREAM_COMMIT`](UPSTREAM_COMMIT).
 
 Syarat utama: **Docker Desktop** sudah terpasang dan aktif.
 
-Setelah repo di-download atau di-clone, pengguna Windows cukup memakai tiga file berikut:
+Paket Windows menyediakan:
 
 ```text
 MULAI_MeTube-SRT.bat
 HENTIKAN_MeTube-SRT.bat
 UPDATE_MeTube-SRT.bat
+VERSI_IMAGE.txt
 ```
 
 ### Menjalankan
@@ -45,12 +48,12 @@ MULAI_MeTube-SRT.bat
 
 Launcher akan:
 
-1. memastikan Docker tersedia;
-2. mencoba memakai image terbaru `ghcr.io/inoriko920-dev/metube-srt:latest`;
-3. jika image GHCR tidak bisa dipull, otomatis fallback ke build source lokal;
-4. membuat folder `downloads` jika belum ada;
-5. menunggu aplikasi siap;
-6. membuka `http://localhost:8081` otomatis di browser.
+1. memastikan Docker tersedia dan aktif;
+2. membaca tag image dari `VERSI_IMAGE.txt`;
+3. mencoba menjalankan `ghcr.io/inoriko920-dev/metube-srt:<tag>`;
+4. jika image GHCR tidak bisa dipull, otomatis fallback ke build source lokal;
+5. membuat folder `downloads` jika belum ada;
+6. menunggu aplikasi siap dan membuka `http://localhost:8081` otomatis.
 
 ### Menghentikan
 
@@ -60,7 +63,7 @@ Double-click:
 HENTIKAN_MeTube-SRT.bat
 ```
 
-Container akan dihentikan. File video dan SRT di folder `downloads` tidak dihapus.
+Container dihentikan. File video dan SRT di folder `downloads` tidak dihapus.
 
 ### Update
 
@@ -70,7 +73,9 @@ Double-click:
 UPDATE_MeTube-SRT.bat
 ```
 
-Updater akan mencoba mengambil image GHCR terbaru. Jika GHCR tidak tersedia, updater mencoba `git pull --ff-only` lalu build ulang source lokal.
+Updater membaca **GitHub Release stabil terbaru**, lalu mencoba menarik Docker image dengan tag release tersebut. Jika berhasil, tag yang dipakai disimpan kembali ke `VERSI_IMAGE.txt` sehingga restart berikutnya tetap memakai versi yang sama.
+
+Jika GitHub Release/GHCR tidak dapat dipakai, updater dapat fallback ke `git pull --ff-only` dan build source lokal bila Git tersedia.
 
 ## Menjalankan manual dengan Docker Compose
 
@@ -100,19 +105,21 @@ Untuk menghentikan aplikasi:
 docker compose down
 ```
 
-### Menggunakan image rilis GHCR
+### Menggunakan image GHCR
+
+Tag image dapat dipilih dengan `METUBE_SRT_IMAGE_TAG`.
+
+Contoh versi stabil:
 
 ```bash
-docker compose -f docker-compose.release.yml up -d
+METUBE_SRT_IMAGE_TAG=v1.0.1 docker compose -f docker-compose.release.yml up -d
 ```
 
-Image yang digunakan:
+Untuk development terbaru dari branch utama:
 
-```text
-ghcr.io/inoriko920-dev/metube-srt:latest
+```bash
+METUBE_SRT_IMAGE_TAG=latest docker compose -f docker-compose.release.yml up -d
 ```
-
-Jika package GHCR belum dapat dipull tanpa login, gunakan build lokal atau launcher Windows yang memiliki fallback otomatis.
 
 ## Cara memakai Video + SRT
 
@@ -182,7 +189,9 @@ Python compile
 Backend tests
 ```
 
-Test backend juga mencakup konfigurasi **video + SRT sidecar**.
+Workflow paket Windows juga memeriksa bahwa ZIP berisi launcher wajib, `VERSI_IMAGE.txt`, source fallback, dan checksum SHA-256 yang valid.
+
+Test backend mencakup konfigurasi **video + SRT sidecar**.
 
 ### Tes nyata Video + SRT di Windows
 
@@ -234,10 +243,10 @@ Tag utama:
 ```text
 latest
 sha-<commit>
-v1.0.0
+vX.Y.Z
 ```
 
-Tag Git seperti `v1.0.0` juga menghasilkan tag image dengan nama yang sama.
+Tag `latest` berasal dari branch `main`. Tag versi seperti `v1.0.1` dibuat dari tag Git dan digunakan oleh paket release stabil.
 
 ## Troubleshooting YouTube
 
