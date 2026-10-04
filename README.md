@@ -2,6 +2,16 @@
 
 MeTube-SRT adalah turunan kecil dari [MeTube](https://github.com/alexta69/metube) yang menambahkan opsi **Download subtitle (SRT)** ke download video biasa.
 
+## Rilis Windows terbaru
+
+Rilis stabil pertama: **v1.0.0**
+
+- Release: https://github.com/inoriko920-dev/MeTube-SRT/releases/tag/v1.0.0
+- ZIP Windows: https://github.com/inoriko920-dev/MeTube-SRT/releases/download/v1.0.0/MeTube-SRT-Windows-v1.0.0.zip
+- SHA-256: https://github.com/inoriko920-dev/MeTube-SRT/releases/download/v1.0.0/MeTube-SRT-Windows-v1.0.0.zip.sha256
+
+Cara paling mudah: download ZIP, ekstrak, pastikan Docker Desktop aktif, lalu double-click `MULAI_MeTube-SRT.bat`.
+
 Saat opsi SRT aktif:
 
 - video tetap di-download seperti biasa;
@@ -224,6 +234,7 @@ Tag utama:
 ```text
 latest
 sha-<commit>
+v1.0.0
 ```
 
 Tag Git seperti `v1.0.0` juga menghasilkan tag image dengan nama yang sama.
