@@ -13,11 +13,58 @@ Saat opsi SRT aktif:
 
 Baseline upstream yang dipakai tercatat di [`UPSTREAM_COMMIT`](UPSTREAM_COMMIT).
 
-## Cara paling mudah menjalankan MeTube-SRT
+## Cara termudah di Windows
 
-### Opsi A — Build lokal dengan Docker Compose
+Syarat utama: **Docker Desktop** sudah terpasang dan aktif.
 
-Ini cara yang paling aman karena selalu memakai source dari repo ini.
+Setelah repo di-download atau di-clone, pengguna Windows cukup memakai tiga file berikut:
+
+```text
+MULAI_MeTube-SRT.bat
+HENTIKAN_MeTube-SRT.bat
+UPDATE_MeTube-SRT.bat
+```
+
+### Menjalankan
+
+Double-click:
+
+```text
+MULAI_MeTube-SRT.bat
+```
+
+Launcher akan:
+
+1. memastikan Docker tersedia;
+2. mencoba memakai image terbaru `ghcr.io/inoriko920-dev/metube-srt:latest`;
+3. jika image GHCR tidak bisa dipull, otomatis fallback ke build source lokal;
+4. membuat folder `downloads` jika belum ada;
+5. menunggu aplikasi siap;
+6. membuka `http://localhost:8081` otomatis di browser.
+
+### Menghentikan
+
+Double-click:
+
+```text
+HENTIKAN_MeTube-SRT.bat
+```
+
+Container akan dihentikan. File video dan SRT di folder `downloads` tidak dihapus.
+
+### Update
+
+Double-click:
+
+```text
+UPDATE_MeTube-SRT.bat
+```
+
+Updater akan mencoba mengambil image GHCR terbaru. Jika GHCR tidak tersedia, updater mencoba `git pull --ff-only` lalu build ulang source lokal.
+
+## Menjalankan manual dengan Docker Compose
+
+### Build lokal
 
 ```bash
 git clone https://github.com/inoriko920-dev/MeTube-SRT.git
@@ -31,7 +78,7 @@ Setelah container hidup, buka:
 http://localhost:8081
 ```
 
-File hasil download disimpan di folder:
+File hasil download disimpan di:
 
 ```text
 ./downloads
@@ -43,32 +90,19 @@ Untuk menghentikan aplikasi:
 docker compose down
 ```
 
-Untuk update ke source terbaru:
+### Menggunakan image rilis GHCR
 
 ```bash
-git pull
-docker compose up -d --build
+docker compose -f docker-compose.release.yml up -d
 ```
 
-### Opsi B — Image GHCR
-
-Repo ini memiliki workflow yang membangun image:
+Image yang digunakan:
 
 ```text
 ghcr.io/inoriko920-dev/metube-srt:latest
 ```
 
-Jika package GHCR sudah dibuat public, image dapat dijalankan langsung:
-
-```bash
-docker run -d \
-  --name metube-srt \
-  -p 8081:8081 \
-  -v ./downloads:/downloads \
-  ghcr.io/inoriko920-dev/metube-srt:latest
-```
-
-Jika package belum public, gunakan **Opsi A** atau login ke GHCR terlebih dahulu.
+Jika package GHCR belum dapat dipull tanpa login, gunakan build lokal atau launcher Windows yang memiliki fallback otomatis.
 
 ## Cara memakai Video + SRT
 
@@ -127,6 +161,10 @@ Urutan yang dipakai:
 CI repo memeriksa:
 
 ```text
+Docker Compose lokal
+Docker Compose release
+Windows launcher files
+PowerShell smoke-test syntax
 Frontend lint
 Frontend build
 Frontend tests
