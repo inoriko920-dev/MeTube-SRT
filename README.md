@@ -136,6 +136,36 @@ Backend tests
 
 Test backend juga mencakup konfigurasi **video + SRT sidecar**.
 
+### Tes nyata Video + SRT di Windows
+
+GitHub-hosted runner dapat diblokir oleh anti-bot YouTube. Karena itu repo menyediakan skrip uji end-to-end yang dijalankan dari koneksi PC sendiri:
+
+```powershell
+powershell -ExecutionPolicy Bypass -File .\scripts\test-youtube-srt.ps1
+```
+
+Skrip akan:
+
+1. memastikan Docker aktif;
+2. menjalankan `docker compose up -d --build`;
+3. mengirim download cuplikan 3 detik dengan opsi SRT aktif;
+4. menunggu antrean selesai;
+5. memastikan benar-benar ada minimal satu file video dan satu file `.srt`.
+
+Hasil uji disimpan terpisah di folder seperti:
+
+```text
+downloads/_smoke_srt_20261004-123456/
+```
+
+Untuk menguji URL lain:
+
+```powershell
+powershell -ExecutionPolicy Bypass -File .\scripts\test-youtube-srt.ps1 -Url "https://www.youtube.com/watch?v=VIDEO_ID"
+```
+
+Pilih video yang memang memiliki subtitle manual atau auto-caption asli. Jika YouTube meminta verifikasi/cookie, skrip akan melaporkannya secara terpisah dan tidak menganggapnya sebagai keberhasilan aplikasi.
+
 ## Docker image otomatis
 
 Workflow `.github/workflows/docker-publish.yml` membangun image multi-architecture:
