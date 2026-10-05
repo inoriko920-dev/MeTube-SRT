@@ -1,0 +1,60 @@
+STEP 07 — QUICK CONSTITUTION CARD
+MeTube-SRT Desktop
+STATUS: PASS_WITH_PROVISIONAL
+
+REPO BASELINE: inoriko920-dev/MeTube-SRT
+VERIFIED MAIN HEAD AT AUTHORING: 090e7288305558f18cc7212d08f1ba7f5e842fd6
+DESKTOP ROOT: desktop/
+PACKAGE: desktop/src/metube_srt_desktop/
+DESKTOP DOCS: docs/desktop/
+
+PRESERVE DURING MIGRATION:
+- app/
+- ui/
+- root pyproject.toml
+- Docker/web runtime
+- existing releases/history
+
+DEPENDENCY DIRECTION:
+presentation -> application -> domain
+adapters/infrastructure/worker -> application ports + domain
+bootstrap -> all layers for construction only
+
+FORBIDDEN:
+- Qt widget -> yt-dlp/Gemini/sqlite/keyring/subprocess
+- domain -> Qt/yt-dlp/Gemini/database/keyring
+- AI -> direct worker/shell/filesystem/secret access
+- worker -> canonical DB ownership
+- blind same-project 429 API-key rotation
+- generic god Manager/Service/App file
+- secrets in repo/log/db/screenshot
+
+CORE OWNERS:
+domain/jobs          job spec/state invariants
+domain/subtitles     manual -> original auto -> none; no auto-translate
+application          commands/queries/use-cases/ports
+presentation         Qt shell/pages/components/viewmodels
+adapters/download    parent download worker adapter
+worker               yt-dlp execution + typed events
+adapters/ai          google-genai normalization only
+adapters/credentials Windows Credential Locker
+adapters/storage     SQLite/settings persistence
+bootstrap            composition only
+
+STEP 08 MUST CREATE:
+- desktop project skeleton + lock
+- desktop/AGENTS.md
+- docs/desktop source-of-truth
+- lint/format/type/pytest/pytest-qt/import/secret gates
+- Windows CI
+- worker protocol scaffold
+- UI_01..UI_20 manifest
+- packaging/tool manifest scaffold
+
+STEP 08 MUST NOT:
+- implement full UI screens
+- implement full yt-dlp/Gemini feature
+- remove legacy web
+- claim packaged app works without evidence
+
+NEXT: STEP 08 — Repository Skeleton & CI Foundation
