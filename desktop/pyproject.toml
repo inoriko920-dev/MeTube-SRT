@@ -1,0 +1,111 @@
+[build-system]
+requires = ["hatchling==1.27.0"]
+build-backend = "hatchling.build"
+
+[project]
+name = "metube-srt-desktop"
+version = "0.1.0.dev0"
+description = "Native Windows desktop client for MeTube-SRT"
+requires-python = "==3.13.*"
+license = { text = "AGPL-3.0-only" }
+dependencies = [
+  "PySide6==6.11.2",
+  "google-genai==2.28.0",
+  "keyring==25.7.0",
+  "yt-dlp[default,curl-cffi]==2026.8.19",
+]
+
+[project.scripts]
+metube-srt-desktop = "metube_srt_desktop.__main__:main"
+
+[dependency-groups]
+dev = [
+  "detect-secrets==1.5.0",
+  "import-linter==2.15",
+  "pyright==1.1.414",
+  "pytest==9.1.1",
+  "pytest-qt==4.5.0",
+  "ruff==0.16.10",
+]
+
+[tool.uv]
+required-version = "==0.12.23"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/metube_srt_desktop"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+addopts = "-q"
+qt_api = "pyside6"
+
+[tool.ruff]
+target-version = "py313"
+line-length = 100
+src = ["src", "tests"]
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "UP", "B", "SIM", "RUF"]
+ignore = []
+
+[tool.ruff.format]
+quote-style = "double"
+indent-style = "space"
+line-ending = "lf"
+
+[tool.pyright]
+pythonVersion = "3.13"
+typeCheckingMode = "strict"
+include = ["src", "tests"]
+exclude = [".venv", "build", "dist"]
+reportMissingTypeStubs = "none"
+
+[tool.importlinter]
+root_package = "metube_srt_desktop"
+include_external_packages = true
+
+[[tool.importlinter.contracts]]
+name = "Domain is dependency-free from outer layers and SDKs"
+type = "forbidden"
+source_modules = ["metube_srt_desktop.domain"]
+forbidden_modules = [
+  "metube_srt_desktop.application",
+  "metube_srt_desktop.presentation",
+  "metube_srt_desktop.adapters",
+  "metube_srt_desktop.worker",
+  "metube_srt_desktop.infrastructure",
+  "metube_srt_desktop.bootstrap",
+  "PySide6",
+  "yt_dlp",
+  "google",
+  "keyring",
+]
+
+[[tool.importlinter.contracts]]
+name = "Application does not import presentation or concrete outer layers"
+type = "forbidden"
+source_modules = ["metube_srt_desktop.application"]
+forbidden_modules = [
+  "metube_srt_desktop.presentation",
+  "metube_srt_desktop.adapters",
+  "metube_srt_desktop.worker",
+  "metube_srt_desktop.infrastructure",
+  "metube_srt_desktop.bootstrap",
+  "PySide6",
+  "yt_dlp",
+  "google",
+  "keyring",
+]
+
+[[tool.importlinter.contracts]]
+name = "Presentation does not import concrete adapters or SDKs"
+type = "forbidden"
+source_modules = ["metube_srt_desktop.presentation"]
+forbidden_modules = [
+  "metube_srt_desktop.adapters",
+  "metube_srt_desktop.worker",
+  "metube_srt_desktop.infrastructure",
+  "yt_dlp",
+  "google",
+  "keyring",
+]
