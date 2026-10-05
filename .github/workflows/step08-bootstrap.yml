@@ -1,0 +1,40 @@
+name: STEP 08 Bootstrap Overlay
+
+on:
+  push:
+    branches:
+      - step08/bootstrap-overlay
+    paths:
+      - '.step08-bootstrap/**'
+      - '.github/workflows/step08-bootstrap.yml'
+
+permissions:
+  contents: write
+
+jobs:
+  materialize:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout staging branch
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Reconstruct verified overlay
+        shell: bash
+        run: |
+          set -euo pipefail
+          cat .step08-bootstrap/part1.bin .step08-bootstrap/part2.bin > /tmp/step08-overlay.zip
+          echo 'bf67b3fe73cd7d6559d38443d9c165e60f909f0bf8a35e9b98464e2ea89ace97  /tmp/step08-overlay.zip' | sha256sum -c -
+          unzip -oq /tmp/step08-overlay.zip -d .
+          rm -rf .step08-bootstrap .github/workflows/step08-bootstrap.yml /tmp/step08-overlay.zip
+
+      - name: Commit clean STEP 08 foundation
+        shell: bash
+        run: |
+          set -euo pipefail
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add -A
+          git commit -m 'build(desktop): add STEP 08 repository foundation'
+          git push origin HEAD:refs/heads/step08/desktop-skeleton
