@@ -3,165 +3,29 @@
   "authority": "STEP 05 UI Freeze",
   "expected_count": 20,
   "items": [
-    {
-      "id": "UI_01",
-      "title": "Main Downloader — Empty/Ready",
-      "status": "authoritative_content_frozen_storage_pending",
-      "path": null,
-      "sha256": null,
-      "note": "Content frozen in STEP 05 package; repository byte storage must be completed before visual regression gate."
-    },
-    {
-      "id": "UI_02",
-      "title": "Main Downloader — URL Resolved + SRT ON",
-      "status": "authoritative_content_frozen_storage_pending",
-      "path": null,
-      "sha256": null,
-      "note": "Content frozen in STEP 05 package; repository byte storage must be completed before visual regression gate."
-    },
-    {
-      "id": "UI_03",
-      "title": "Main Downloader — Resolving + Warning",
-      "status": "authoritative_content_frozen_storage_pending",
-      "path": null,
-      "sha256": null,
-      "note": "Content frozen in STEP 05 package; repository byte storage must be completed before visual regression gate."
-    },
-    {
-      "id": "UI_04",
-      "title": "Bulk Review — Playlist / Channel Selection",
-      "status": "authoritative_in_git",
-      "path": "docs/software-factory/step-05/ui-reference/UI_04_Tinjau_Playlist_Channel.webp",
-      "sha256": null,
-      "note": "STEP 05 repair reference; checksum filled/verified by STEP 08 evidence update."
-    },
-    {
-      "id": "UI_05",
-      "title": "Bulk Review — Partial / Unavailable",
-      "status": "authoritative_content_frozen_storage_pending",
-      "path": null,
-      "sha256": null,
-      "note": "Content frozen in STEP 05 package; repository byte storage must be completed before visual regression gate."
-    },
-    {
-      "id": "UI_06",
-      "title": "Queue — Active Mixed Jobs",
-      "status": "authoritative_content_frozen_storage_pending",
-      "path": null,
-      "sha256": null,
-      "note": "Content frozen in STEP 05 package; repository byte storage must be completed before visual regression gate."
-    },
-    {
-      "id": "UI_07",
-      "title": "Queue / Results — Success + Failed",
-      "status": "authoritative_content_frozen_storage_pending",
-      "path": null,
-      "sha256": null,
-      "note": "Content frozen in STEP 05 package; repository byte storage must be completed before visual regression gate."
-    },
-    {
-      "id": "UI_08",
-      "title": "Gemini API Key Manager — Empty",
-      "status": "authoritative_in_git",
-      "path": "docs/software-factory/step-05/ui-reference/UI_08_API_Key_Manager_Empty.webp",
-      "sha256": null,
-      "note": "STEP 05 repair reference; checksum filled/verified by STEP 08 evidence update."
-    },
-    {
-      "id": "UI_09",
-      "title": "Gemini API Key Manager — Populated",
-      "status": "authoritative_in_git",
-      "path": "docs/software-factory/step-05/ui-reference/UI_09_API_Key_Manager_Populated.webp",
-      "sha256": null,
-      "note": "STEP 05 repair reference; checksum filled/verified by STEP 08 evidence update."
-    },
-    {
-      "id": "UI_10",
-      "title": "Gemini API Key Testing / Rate Limit",
-      "status": "authoritative_in_git",
-      "path": "docs/software-factory/step-05/ui-reference/UI_10_API_Key_Testing_Rate_Limit.webp",
-      "sha256": null,
-      "note": "STEP 05 repair reference; checksum filled/verified by STEP 08 evidence update."
-    },
-    {
-      "id": "UI_11",
-      "title": "Settings — General / Download / AI / Privacy",
-      "status": "authoritative_in_git",
-      "path": "docs/software-factory/step-05/ui-reference/UI_11_Settings_General_Download_AI_Privacy.webp",
-      "sha256": null,
-      "note": "STEP 05 repair reference; checksum filled/verified by STEP 08 evidence update."
-    },
-    {
-      "id": "UI_12",
-      "title": "Diagnostics / Job Detail — Redacted Error",
-      "status": "authoritative_in_git",
-      "path": "docs/software-factory/step-05/ui-reference/UI_12_Diagnostics_Redacted_Error.webp",
-      "sha256": null,
-      "note": "STEP 05 repair reference; checksum filled/verified by STEP 08 evidence update."
-    },
-    {
-      "id": "UI_13",
-      "title": "AI Agent — Idle",
-      "status": "authoritative_in_git",
-      "path": "docs/software-factory/step-05/ui-reference/UI_13_AI_Agent_Idle.webp",
-      "sha256": null,
-      "note": "STEP 05 repair reference; checksum filled/verified by STEP 08 evidence update."
-    },
-    {
-      "id": "UI_14",
-      "title": "AI Agent — Interpretation Preview / Approval",
-      "status": "authoritative_in_git",
-      "path": "docs/software-factory/step-05/ui-reference/UI_14_AI_Agent_Approval.webp",
-      "sha256": null,
-      "note": "STEP 05 repair reference; checksum filled/verified by STEP 08 evidence update."
-    },
-    {
-      "id": "UI_15",
-      "title": "AI Agent — Executing Linked to Real Jobs",
-      "status": "authoritative_in_git",
-      "path": "docs/software-factory/step-05/ui-reference/UI_15_AI_Agent_Executing.webp",
-      "sha256": null,
-      "note": "STEP 05 repair reference; checksum filled/verified by STEP 08 evidence update."
-    },
-    {
-      "id": "UI_16",
-      "title": "AI Agent — Provider Error",
-      "status": "authoritative_in_git",
-      "path": "docs/software-factory/step-05/ui-reference/UI_16_AI_Agent_Provider_Error.webp",
-      "sha256": null,
-      "note": "STEP 05 repair reference; checksum filled/verified by STEP 08 evidence update."
-    },
-    {
-      "id": "UI_17",
-      "title": "Import API Keys",
-      "status": "authoritative_content_frozen_storage_pending",
-      "path": null,
-      "sha256": null,
-      "note": "Content frozen in STEP 05 package; repository byte storage must be completed before visual regression gate."
-    },
-    {
-      "id": "UI_18",
-      "title": "First Run Readiness",
-      "status": "authoritative_content_frozen_storage_pending",
-      "path": null,
-      "sha256": null,
-      "note": "Content frozen in STEP 05 package; repository byte storage must be completed before visual regression gate."
-    },
-    {
-      "id": "UI_19",
-      "title": "YouTube Cookie / Authentication",
-      "status": "authoritative_content_frozen_storage_pending",
-      "path": null,
-      "sha256": null,
-      "note": "Content frozen in STEP 05 package; repository byte storage must be completed before visual regression gate."
-    },
-    {
-      "id": "UI_20",
-      "title": "Close With Active Jobs",
-      "status": "authoritative_content_frozen_storage_pending",
-      "path": null,
-      "sha256": null,
-      "note": "Content frozen in STEP 05 package; repository byte storage must be completed before visual regression gate."
-    }
-  ]
+    {"id":"UI_01","title":"Main Downloader — Empty/Ready","status":"authoritative_content_frozen_storage_pending","path":null,"note":"Content frozen in STEP 05 package; repository byte storage must be completed before visual regression gate.","master_filename":"UI_01_Main_Downloader_Empty.png","master_sha256":"15e155eef1da61b6a41a3f5a6b652087ff69e87d50401111474f45214b2486de","git_blob_sha":null,"reference_format":null},
+    {"id":"UI_02","title":"Main Downloader — URL Resolved + SRT ON","status":"authoritative_content_frozen_storage_pending","path":null,"note":"Content frozen in STEP 05 package; repository byte storage must be completed before visual regression gate.","master_filename":"UI_02_Main_Downloader_Resolved_SRT_On.png","master_sha256":"1302f6ef2b45a8f1fccf1a494111c41176f8d878ac103f91a4ce8df57c44c132","git_blob_sha":null,"reference_format":null},
+    {"id":"UI_03","title":"Main Downloader — Resolving + Warning","status":"authoritative_content_frozen_storage_pending","path":null,"note":"Content frozen in STEP 05 package; repository byte storage must be completed before visual regression gate.","master_filename":"UI_03_Main_Downloader_Resolving_Warning.png","master_sha256":"7fa6e133370f5686ff894d633b1c09493f4efb42f0f392640e424641f9f2ca08","git_blob_sha":null,"reference_format":null},
+    {"id":"UI_04","title":"Bulk Review — Playlist / Channel Selection","status":"authoritative_in_git","path":"docs/software-factory/step-05/ui-reference/UI_04_Tinjau_Playlist_Channel.webp","note":"STEP 05 repair reference; checksum filled/verified by STEP 08 evidence update.","master_filename":"UI_04_Tinjau_Playlist_Channel.png","master_sha256":"9a7c0791e05d58a508a9e2c75fecc928e6b07ddeb86e59e9dfce9bf84483e61a","git_blob_sha":"bf2e282aac7d48d738b22616710675bda78affcf","reference_format":"webp"},
+    {"id":"UI_05","title":"Bulk Review — Partial / Unavailable","status":"authoritative_content_frozen_storage_pending","path":null,"note":"Content frozen in STEP 05 package; repository byte storage must be completed before visual regression gate.","master_filename":"UI_05_Bulk_Review_Partial_Unavailable.png","master_sha256":"085378d368f99adff3d76cdd3f95ef3aae8fdad422ac95e9e401ab7bda192fa8","git_blob_sha":null,"reference_format":null},
+    {"id":"UI_06","title":"Queue — Active Mixed Jobs","status":"authoritative_content_frozen_storage_pending","path":null,"note":"Content frozen in STEP 05 package; repository byte storage must be completed before visual regression gate.","master_filename":"UI_06_Queue_Active_Mixed_Jobs.png","master_sha256":"0c826e8331ba94eaa4bb8192c560713fb0de23ba7c9d58cc8b7548adad0948e8","git_blob_sha":null,"reference_format":null},
+    {"id":"UI_07","title":"Queue / Results — Success + Failed","status":"authoritative_content_frozen_storage_pending","path":null,"note":"Content frozen in STEP 05 package; repository byte storage must be completed before visual regression gate.","master_filename":"UI_07_Queue_Results_Success_Failed.png","master_sha256":"c4c4acef968099b69fde026d78c0b58a9235b5bc15aefc799808ddb57cc5c4c6","git_blob_sha":null,"reference_format":null},
+    {"id":"UI_08","title":"Gemini API Key Manager — Empty","status":"authoritative_in_git","path":"docs/software-factory/step-05/ui-reference/UI_08_API_Key_Manager_Empty.webp","note":"STEP 05 repair reference; checksum filled/verified by STEP 08 evidence update.","master_filename":"UI_08_API_Key_Manager_Empty.png","master_sha256":"5fdc0c24ea31ba17c569c02535418993755149cf305b4520739d82e06467dd34","git_blob_sha":"819f1bcee7c28b3790a84344c8e7b39c46e8f506","reference_format":"webp"},
+    {"id":"UI_09","title":"Gemini API Key Manager — Populated","status":"authoritative_in_git","path":"docs/software-factory/step-05/ui-reference/UI_09_API_Key_Manager_Populated.webp","note":"STEP 05 repair reference; checksum filled/verified by STEP 08 evidence update.","master_filename":"UI_09_API_Key_Manager_Populated.png","master_sha256":"2983d9e42c599a3223fa42d20197106eb01efe12ba89e971ab0d0657f13ded95","git_blob_sha":"58b89c8217dc0cca5887c7d8531ec457763f26e6","reference_format":"webp"},
+    {"id":"UI_10","title":"Gemini API Key Testing / Rate Limit","status":"authoritative_in_git","path":"docs/software-factory/step-05/ui-reference/UI_10_API_Key_Testing_Rate_Limit.webp","note":"STEP 05 repair reference; checksum filled/verified by STEP 08 evidence update.","master_filename":"UI_10_API_Key_Testing_Rate_Limit.png","master_sha256":"826d20c75d6d745fe575c6bea947474f8a4de23138a78e8c3af6ed02b81444b0","git_blob_sha":"522d2dbc9421ba60efc154926735f5d760f31116","reference_format":"webp"},
+    {"id":"UI_11","title":"Settings — General / Download / AI / Privacy","status":"authoritative_in_git","path":"docs/software-factory/step-05/ui-reference/UI_11_Settings_General_Download_AI_Privacy.webp","note":"STEP 05 repair reference; checksum filled/verified by STEP 08 evidence update.","master_filename":"UI_11_Settings_General_Download_AI_Privacy.png","master_sha256":"9732aa4482caca5b9d3c335af230ba9b4fdfc9f33e82d7bc3f0cec19e594f9df","git_blob_sha":"7d8a485af77f458f26655a5ed2d123d419d050ce","reference_format":"webp"},
+    {"id":"UI_12","title":"Diagnostics / Job Detail — Redacted Error","status":"authoritative_in_git","path":"docs/software-factory/step-05/ui-reference/UI_12_Diagnostics_Redacted_Error.webp","note":"STEP 05 repair reference; checksum filled/verified by STEP 08 evidence update.","master_filename":"UI_12_Diagnostics_Redacted_Error.png","master_sha256":"77b8d768cd19fcd0f786575454e5c30ac6c9299f8eb8e4780ab37ddef7c80271","git_blob_sha":"22bce15ba750274e885af0c03f16c5fbaeacc79e","reference_format":"webp"},
+    {"id":"UI_13","title":"AI Agent — Idle","status":"authoritative_in_git","path":"docs/software-factory/step-05/ui-reference/UI_13_AI_Agent_Idle.webp","note":"STEP 05 repair reference; checksum filled/verified by STEP 08 evidence update.","master_filename":"UI_13_AI_Agent_Idle.png","master_sha256":"4ebfcfc427fc189aaab7b6e3379607f9695a1a55c45cefe030a34fce8077445d","git_blob_sha":"1bfa4299b3174c436ae3f528018964ebb5d100de","reference_format":"webp"},
+    {"id":"UI_14","title":"AI Agent — Interpretation Preview / Approval","status":"authoritative_in_git","path":"docs/software-factory/step-05/ui-reference/UI_14_AI_Agent_Approval.webp","note":"STEP 05 repair reference; checksum filled/verified by STEP 08 evidence update.","master_filename":"UI_14_AI_Agent_Approval.png","master_sha256":"f01da310465635597e47954124e3e1a8a3aa1f487260b2e83592f66b34fe563f","git_blob_sha":"65a7dde21b7db622aa5ea377b5fbc3171c80b7cf","reference_format":"webp"},
+    {"id":"UI_15","title":"AI Agent — Executing Linked to Real Jobs","status":"authoritative_in_git","path":"docs/software-factory/step-05/ui-reference/UI_15_AI_Agent_Executing.webp","note":"STEP 05 repair reference; checksum filled/verified by STEP 08 evidence update.","master_filename":"UI_15_AI_Agent_Executing.png","master_sha256":"9412e0ccb8a5646f4d36c1aead7443320a2fe55a5969dee666bf4edff676d5f5","git_blob_sha":"b28f4cca9d52580d9be836b32f3981229d1a23ef","reference_format":"webp"},
+    {"id":"UI_16","title":"AI Agent — Provider Error","status":"authoritative_in_git","path":"docs/software-factory/step-05/ui-reference/UI_16_AI_Agent_Provider_Error.webp","note":"STEP 05 repair reference; checksum filled/verified by STEP 08 evidence update.","master_filename":"UI_16_AI_Agent_Provider_Error.png","master_sha256":"6abd000eca5a5a357223b2652f8d4fab73fb71a53d6d476b2706795a1d2eaf87","git_blob_sha":"83b23c0d5a6d4cfa9dc0ccfa5eee92222e13bd30","reference_format":"webp"},
+    {"id":"UI_17","title":"Import API Keys","status":"authoritative_content_frozen_storage_pending","path":null,"note":"Content frozen in STEP 05 package; repository byte storage must be completed before visual regression gate.","master_filename":"UI_17_Import_API_Keys.png","master_sha256":"3fcd34a0ba1216a2a6c23726a5f0c5110abe96ca49b01ed6cba06fe754680a87","git_blob_sha":null,"reference_format":null},
+    {"id":"UI_18","title":"First Run Readiness","status":"authoritative_content_frozen_storage_pending","path":null,"note":"Content frozen in STEP 05 package; repository byte storage must be completed before visual regression gate.","master_filename":"UI_18_First_Run_Readiness.png","master_sha256":"77ecfbe37e5fb6cde0dc3146c738851496fa468323d60622bfa9f7a854a9b64d","git_blob_sha":null,"reference_format":null},
+    {"id":"UI_19","title":"YouTube Cookie / Authentication","status":"authoritative_content_frozen_storage_pending","path":null,"note":"Content frozen in STEP 05 package; repository byte storage must be completed before visual regression gate.","master_filename":"UI_19_YouTube_Cookie_Authentication.png","master_sha256":"d4167e32152cef286e09ca9a94ca11f02ab620b7371d51f1bb4cc89f3ec1e1fd","git_blob_sha":null,"reference_format":null},
+    {"id":"UI_20","title":"Close With Active Jobs","status":"authoritative_content_frozen_storage_pending","path":null,"note":"Content frozen in STEP 05 package; repository byte storage must be completed before visual regression gate.","master_filename":"UI_20_Close_With_Active_Jobs.png","master_sha256":"5be0907aac3cafa12b7369a3b1df00f376bc8ee3a242dc171836262f236ee965","git_blob_sha":null,"reference_format":null}
+  ],
+  "master_hashes_complete": true,
+  "git_reference_bytes_complete": false,
+  "git_reference_count": 10,
+  "storage_note": "All 20 frozen master PNG SHA-256 values are recorded. Ten repair references are stored in Git as WebP; ten original references still require repository byte storage before full visual-regression readiness."
 }
