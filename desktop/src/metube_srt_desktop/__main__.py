@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import argparse
+from collections.abc import Sequence
 
 from metube_srt_desktop import __version__
 
@@ -11,22 +12,21 @@ def build_parser() -> argparse.ArgumentParser:
     parser.add_argument(
         "--self-check",
         action="store_true",
-        help="Run the STEP 08 skeleton self-check without starting the future UI.",
+        help="Run the repository foundation check without starting the desktop UI.",
     )
     return parser
 
 
-def main() -> int:
-    args = build_parser().parse_args()
+def main(argv: Sequence[str] | None = None) -> int:
+    parser = build_parser()
+    args, qt_args = parser.parse_known_args(list(argv) if argv is not None else None)
     if args.self_check:
-        print("MeTube-SRT Desktop skeleton: OK")
+        print("MeTube-SRT Desktop foundation: OK")
         return 0
 
-    print(
-        "MeTube-SRT Desktop UI is not implemented in STEP 08. "
-        "Use --self-check for the repository foundation check."
-    )
-    return 0
+    from metube_srt_desktop.bootstrap.app_bootstrap import run_desktop
+
+    return run_desktop(qt_args)
 
 
 if __name__ == "__main__":
