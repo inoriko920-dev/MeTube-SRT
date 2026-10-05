@@ -1,9 +1,10 @@
 from __future__ import annotations
 
 import json
+from collections.abc import Mapping
 from dataclasses import asdict, dataclass
 from enum import StrEnum
-from typing import Any, Final, Mapping
+from typing import Any, Final
 
 WORKER_PROTOCOL_VERSION: Final[int] = 1
 
@@ -44,7 +45,7 @@ class WorkerEnvelope:
         return json.dumps(data, separators=(",", ":"), ensure_ascii=False) + "\n"
 
     @classmethod
-    def from_json_line(cls, line: str) -> "WorkerEnvelope":
+    def from_json_line(cls, line: str) -> WorkerEnvelope:
         raw = json.loads(line)
         if not isinstance(raw, dict):
             raise ValueError("worker event must be a JSON object")
