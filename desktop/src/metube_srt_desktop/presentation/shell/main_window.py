@@ -18,7 +18,7 @@ from metube_srt_desktop.presentation.theme.tokens import TOKENS
 class PageId(StrEnum):
     DOWNLOAD = "download"
     QUEUE = "queue"
-    API_KEYS = "api_keys"
+    API_KEYS = "api_keys"  # pragma: allowlist secret
     SETTINGS = "settings"
 
 
