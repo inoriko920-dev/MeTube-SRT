@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from collections.abc import Mapping, Sequence
+from typing import cast
 from urllib.parse import parse_qs, urlsplit
 
 from metube_srt_desktop.application.dto.download import (
@@ -104,13 +105,14 @@ def _mapping_entries(value: object) -> tuple[Mapping[str, object], ...]:
         return ()
 
     entries: list[Mapping[str, object]] = []
-    for entry in value:
+    for entry in cast(Sequence[object], value):
         if isinstance(entry, Mapping):
-            entries.append(entry)
+            entries.append(cast(Mapping[str, object], entry))
     return tuple(entries)
 
 
 def _mapping_keys(value: object) -> tuple[str, ...]:
     if not isinstance(value, Mapping):
         return ()
-    return tuple(key for key in value if isinstance(key, str) and key.strip())
+    mapping = cast(Mapping[object, object], value)
+    return tuple(key for key in mapping if isinstance(key, str) and key.strip())
