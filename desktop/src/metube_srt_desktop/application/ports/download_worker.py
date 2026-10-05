@@ -3,7 +3,7 @@ from __future__ import annotations
 from collections.abc import Iterable
 from typing import Protocol
 
-from metube_srt_desktop.worker.protocol import WorkerEnvelope
+from metube_srt_desktop.application.dto.worker_protocol import WorkerEnvelope
 
 
 class DownloadWorkerPort(Protocol):
