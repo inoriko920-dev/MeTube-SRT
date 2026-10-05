@@ -78,7 +78,10 @@ def build_stylesheet() -> str:
     }}
     QPushButton[role='secondary']:hover {{ background: {t.color_surface_alt}; }}
     QPushButton[role='ghost'] {{ border: 0; background: transparent; padding: 7px; }}
-    QPushButton[role='ghost']:hover {{ background: {t.color_surface_alt}; border-radius: {t.radius_sm}px; }}
+    QPushButton[role='ghost']:hover {{
+        background: {t.color_surface_alt};
+        border-radius: {t.radius_sm}px;
+    }}
 
     QLabel[badge='success'] {{
         color: {t.color_success}; background: {t.color_success_soft};

@@ -34,7 +34,7 @@ class AIWorkspace(QFrame):
         status = QLabel("Siap")
         status.setObjectName("ai.status")
         status.setProperty("badge", "success")
-        self._collapse_button = QPushButton("‹")
+        self._collapse_button = QPushButton("<")
         self._collapse_button.setObjectName("ai.collapse_button")
         self._collapse_button.setProperty("role", "ghost")
         self._collapse_button.setToolTip("Ciutkan panel AI")
@@ -99,6 +99,6 @@ class AIWorkspace(QFrame):
         self._collapsed = collapsed
         self._body.setVisible(not collapsed)
         self._collapsed_label.setVisible(collapsed)
-        self._collapse_button.setText("›" if collapsed else "‹")
+        self._collapse_button.setText(">" if collapsed else "<")
         self._collapse_button.setToolTip("Buka panel AI" if collapsed else "Ciutkan panel AI")
         self.setFixedWidth(TOKENS.ai_collapsed_width if collapsed else TOKENS.ai_panel_width)

@@ -29,7 +29,8 @@ class DownloadPage(QWidget):
         layout.addWidget(
             PageHeader(
                 "Unduh",
-                "Video tunggal, playlist, atau channel. Subtitle SRT opsional tanpa terjemahan otomatis.",
+                "Video tunggal, playlist, atau channel. "
+                "Subtitle SRT opsional tanpa terjemahan otomatis.",
             )
         )
 
@@ -98,7 +99,8 @@ class DownloadPage(QWidget):
         empty_title = QLabel("Siap menerima URL")
         empty_title.setProperty("sectionTitle", True)
         empty_text = QLabel(
-            "Tempel satu URL, playlist, atau channel. Setelah diperiksa, item akan muncul di sini sebelum masuk antrian."
+            "Tempel satu URL, playlist, atau channel. Setelah diperiksa, "
+            "item akan muncul di sini sebelum masuk antrian."
         )
         empty_text.setProperty("muted", True)
         empty_text.setWordWrap(True)
