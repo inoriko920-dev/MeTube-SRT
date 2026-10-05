@@ -30,9 +30,7 @@ class WorkerEnvelope:
 
     def __post_init__(self) -> None:
         if self.schema_version != WORKER_PROTOCOL_VERSION:
-            raise ValueError(
-                f"unsupported worker protocol version: {self.schema_version}"
-            )
+            raise ValueError(f"unsupported worker protocol version: {self.schema_version}")
         if not self.job_id.strip():
             raise ValueError("job_id must be non-empty")
         if not self.worker_run_id.strip():
