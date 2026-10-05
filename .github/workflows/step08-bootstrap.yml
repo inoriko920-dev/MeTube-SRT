@@ -28,8 +28,9 @@ jobs:
           echo 'bf67b3fe73cd7d6559d38443d9c165e60f909f0bf8a35e9b98464e2ea89ace97  /tmp/step08-overlay.zip' | sha256sum -c -
           unzip -oq /tmp/step08-overlay.zip -d .
           rm -rf .step08-bootstrap .github/workflows/step08-bootstrap.yml /tmp/step08-overlay.zip
+          rm -f .github/workflows/desktop-ci.yml
 
-      - name: Commit clean STEP 08 foundation
+      - name: Commit clean STEP 08 foundation without workflow file
         shell: bash
         run: |
           set -euo pipefail
