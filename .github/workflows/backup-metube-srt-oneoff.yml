@@ -1,0 +1,446 @@
+name: Backup MeTube-SRT One-Off
+
+on:
+  push:
+    branches:
+      - backup/metube-srt-2026-10-05-1723-wib
+    paths:
+      - .github/workflows/backup-metube-srt-oneoff.yml
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+env:
+  BACKUP_STAMP: 2026-10-05_17-23_WIB
+  BACKUP_REQUESTED_WIB: "2026-10-05 17:23:00 WIB"
+  APP_NAME: MeTube-SRT
+  LATEST_STABLE_TAG: v1.0.1
+  LATEST_STABLE_BUILD: MeTube-SRT-Windows-v1.0.1.zip
+
+jobs:
+  backup:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - name: Checkout workflow branch
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 1
+
+      - name: Build complete verified backup
+        env:
+          GH_TOKEN: ${{ github.token }}
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          ROOT="MASTER-BACKUP-METUBE-SRT-${BACKUP_STAMP}"
+          APP="${ROOT}/APP_001_MeTube-SRT"
+          TMP="${RUNNER_TEMP}/metube-srt-backup"
+          MIRROR="${TMP}/MeTube-SRT.git"
+          BUNDLE="${PWD}/${APP}/GIT/MeTube-SRT-COMPLETE-GIT-HISTORY.bundle"
+
+          rm -rf "$ROOT" "$TMP"
+          mkdir -p "$APP"/{GIT,SOURCE,BUILD,DOCS,RECOVERY} "$TMP"
+
+          echo "[1/10] Fetch all Git branches/tags into a bare mirror"
+          git init --bare "$MIRROR"
+          git -C "$MIRROR" remote add origin "https://x-access-token:${GH_TOKEN}@github.com/${GITHUB_REPOSITORY}.git"
+          git -C "$MIRROR" fetch --prune --force origin \
+            '+refs/heads/*:refs/heads/*' \
+            '+refs/tags/*:refs/tags/*'
+
+          MAIN_COMMIT="$(git -C "$MIRROR" rev-parse refs/heads/main)"
+          DEV_COMMIT="NONE"
+          if git -C "$MIRROR" show-ref --verify --quiet refs/heads/step09/app-shell; then
+            DEV_COMMIT="$(git -C "$MIRROR" rev-parse refs/heads/step09/app-shell)"
+          fi
+
+          echo "[2/10] Create and verify complete Git bundle"
+          git -C "$MIRROR" bundle create "$BUNDLE" --all
+          VERIFY_REPO="${TMP}/verify.git"
+          git init --bare "$VERIFY_REPO"
+          git -C "$VERIFY_REPO" bundle verify "$BUNDLE" > "$APP/GIT/BUNDLE_VERIFY.txt" 2>&1
+          git -C "$MIRROR" for-each-ref --format='%(refname) %(objectname)' refs/heads refs/tags | sort > "$APP/GIT/BUNDLE_REFS.txt"
+
+          echo "[3/10] Create human-readable source snapshots"
+          git -C "$MIRROR" archive --format=zip --output="${PWD}/${APP}/SOURCE/MeTube-SRT-SOURCE-main.zip" refs/heads/main
+          if [ "$DEV_COMMIT" != "NONE" ]; then
+            git -C "$MIRROR" archive --format=zip --output="${PWD}/${APP}/SOURCE/MeTube-SRT-SOURCE-step09-app-shell.zip" refs/heads/step09/app-shell
+          fi
+          unzip -t "$APP/SOURCE/MeTube-SRT-SOURCE-main.zip" >/dev/null
+          if [ -f "$APP/SOURCE/MeTube-SRT-SOURCE-step09-app-shell.zip" ]; then
+            unzip -t "$APP/SOURCE/MeTube-SRT-SOURCE-step09-app-shell.zip" >/dev/null
+          fi
+
+          echo "[4/10] Save repository inventory and important documentation"
+          git -C "$MIRROR" for-each-ref --format='%(refname:short)|%(objectname)|%(committerdate:iso8601)' refs/heads | sort > "$APP/BRANCHES.txt"
+          git -C "$MIRROR" for-each-ref --format='%(refname:short)|%(objectname)' refs/tags | sort > "$APP/TAGS.txt"
+          git -C "$MIRROR" log --all --date=iso-strict --pretty=format:'%H|%ad|%an|%s' > "$APP/COMMIT_HISTORY.txt"
+          printf '%s\n' "$MAIN_COMMIT" > "$APP/MAIN_COMMIT.txt"
+          printf '%s\n' "$DEV_COMMIT" > "$APP/LATEST_DEVELOPMENT_COMMIT.txt"
+
+          git -C "$MIRROR" archive refs/heads/main README.md AGENTS.md CHANGELOG.md SECURITY.md LICENSE docs | tar -x -C "$APP/DOCS"
+
+          BRANCH_COUNT="$(git -C "$MIRROR" for-each-ref refs/heads --format='%(refname)' | wc -l | tr -d ' ')"
+          TAG_COUNT="$(git -C "$MIRROR" for-each-ref refs/tags --format='%(refname)' | wc -l | tr -d ' ')"
+          COMMIT_COUNT="$(git -C "$MIRROR" rev-list --all --count)"
+
+          cat > "$APP/REPOSITORY_INFO.txt" <<EOF
+          APP_NAME=MeTube-SRT
+          ORIGINAL_REPO=https://github.com/${GITHUB_REPOSITORY}
+          DEFAULT_BRANCH=main
+          MAIN_COMMIT=${MAIN_COMMIT}
+          LATEST_DEVELOPMENT_BRANCH=step09/app-shell
+          LATEST_DEVELOPMENT_COMMIT=${DEV_COMMIT}
+          BRANCH_COUNT=${BRANCH_COUNT}
+          TAG_COUNT=${TAG_COUNT}
+          COMMIT_COUNT_ALL_REFS=${COMMIT_COUNT}
+          LICENSE=AGPL-3.0
+          BACKUP_REQUESTED_WIB=${BACKUP_REQUESTED_WIB}
+          EOF
+
+          echo "[5/10] Detect required Actions secret names without backing up values"
+          SECRET_NAMES="${TMP}/required-secret-names.txt"
+          : > "$SECRET_NAMES"
+          while IFS= read -r ref; do
+            git -C "$MIRROR" grep -h -o -E '\$\{\{[[:space:]]*secrets\.[A-Za-z0-9_]+' "$ref" -- '.github/workflows/*' 2>/dev/null || true
+          done < <(git -C "$MIRROR" for-each-ref --format='%(refname)' refs/heads) \
+            | sed -E 's/.*secrets\.([A-Za-z0-9_]+).*/\1/' \
+            | sort -u > "$SECRET_NAMES"
+
+          {
+            echo "Secret values are intentionally NOT backed up."
+            echo "If a name is listed below, recreate it manually in the new GitHub repository."
+            echo
+            if [ -s "$SECRET_NAMES" ]; then
+              while IFS= read -r name; do
+                echo "SECRET_REQUIRED_BUT_NOT_BACKED_UP: ${name}"
+              done < "$SECRET_NAMES"
+            else
+              echo "NONE_DETECTED_IN_CURRENT_WORKFLOW_REFS"
+            fi
+          } > "$APP/REQUIRED_SECRETS.txt"
+
+          echo "[6/10] Scan all reachable commit trees for strong credential signatures"
+          FINDINGS="${TMP}/secret-findings.txt"
+          : > "$FINDINGS"
+          TOKEN_RE='AIza[0-9A-Za-z_-]{35}|ghp_[0-9A-Za-z]{36}|github_pat_[0-9A-Za-z_]{60,}|glpat-[0-9A-Za-z_-]{20,}'
+          while IFS= read -r commit; do
+            git -C "$MIRROR" grep -I -n -E "$TOKEN_RE" "$commit" -- . >> "$FINDINGS" 2>/dev/null || true
+          done < <(git -C "$MIRROR" rev-list --all)
+          sort -u "$FINDINGS" -o "$FINDINGS"
+          if [ -s "$FINDINGS" ]; then
+            echo "Potential credential-like values were found in Git history; refusing to create a portable backup containing them." >&2
+            sed -E 's/(AIza|ghp_|github_pat_|glpat-)[^[:space:]]+/<REDACTED_CREDENTIAL_LIKE_VALUE>/g' "$FINDINGS" >&2
+            exit 42
+          fi
+          cat > "$APP/SECRET_SCAN.txt" <<'EOF'
+          RESULT=PASS
+          No strong Gemini/GitHub/GitLab token signatures were detected in reachable commit trees.
+          This is an automated safeguard, not a guarantee that arbitrary secrets can never exist.
+          EOF
+
+          echo "[7/10] Back up latest trusted stable Windows build if available"
+          if gh release view "$LATEST_STABLE_TAG" --repo "$GITHUB_REPOSITORY" >/dev/null 2>&1; then
+            gh release download "$LATEST_STABLE_TAG" --repo "$GITHUB_REPOSITORY" \
+              --pattern "$LATEST_STABLE_BUILD" \
+              --pattern "${LATEST_STABLE_BUILD}.sha256" \
+              --dir "$APP/BUILD"
+            (
+              cd "$APP/BUILD"
+              sha256sum -c "${LATEST_STABLE_BUILD}.sha256"
+            ) > "$APP/BUILD/BUILD_VERIFY.txt"
+            cat > "$APP/BUILD/RELEASE_INFO.txt" <<EOF
+          RELEASE_TAG=${LATEST_STABLE_TAG}
+          BUILD_FILE=${LATEST_STABLE_BUILD}
+          RELEASE_URL=https://github.com/${GITHUB_REPOSITORY}/releases/tag/${LATEST_STABLE_TAG}
+          STATUS=VERIFIED_FROM_RELEASE_CHECKSUM
+          EOF
+            BUILD_STATUS="VERIFIED_STABLE_BUILD_AVAILABLE"
+          else
+            echo "BUILD_NOT_AVAILABLE" > "$APP/BUILD/BUILD_NOT_AVAILABLE.txt"
+            BUILD_STATUS="BUILD_NOT_AVAILABLE"
+          fi
+
+          echo "[8/10] Create beginner-friendly recovery and verification scripts"
+          cat > "$APP/README_RESTORE.txt" <<'EOF'
+          PEMULIHAN MeTube-SRT JIKA GITHUB LAMA SUDAH TIDAK BISA DIAKSES
+
+          1. Ekstrak MASTER BACKUP ini.
+          2. Buka APP_001_MeTube-SRT.
+          3. Jalankan RECOVERY\VERIFY_BACKUP.ps1.
+          4. Pastikan semua checksum PASS.
+          5. Pastikan Git sudah terpasang di Windows 11.
+          6. Buat repository KOSONG bernama MeTube-SRT pada akun GitHub baru.
+          7. Jalankan RECOVERY\RESTORE_TO_NEW_GITHUB.ps1.
+          8. Masukkan URL repository GitHub baru saat diminta.
+          9. Script akan memverifikasi Git Bundle sebelum menawarkan push.
+          10. Ketik PUSH hanya jika URL tujuan sudah benar.
+          11. Pasang kembali secret yang tercatat di REQUIRED_SECRETS.txt; nilainya memang tidak dibackup.
+          12. Setelah restore, cocokkan branch, tag, dan commit dengan BRANCHES.txt / TAGS.txt / MAIN_COMMIT.txt.
+
+          SOURCE ZIP adalah snapshot yang mudah dibuka manusia.
+          GIT BUNDLE adalah backup riwayat Git/branch/tag untuk pemulihan repository.
+          EOF
+
+          cat > "$APP/RECOVERY/PETUNJUK_PEMULIHAN.txt" <<'EOF'
+          Gunakan README_RESTORE.txt di folder aplikasi terlebih dahulu.
+          Untuk restore penuh, prioritaskan Git Bundle. SOURCE zip adalah cadangan yang mudah dibuka, bukan pengganti riwayat Git.
+          EOF
+
+          cat > "$APP/RECOVERY/RESTORE_TO_NEW_GITHUB.ps1" <<'POWERSHELL'
+          $ErrorActionPreference = "Stop"
+          $Here = Split-Path -Parent $MyInvocation.MyCommand.Path
+          $App = Resolve-Path (Join-Path $Here "..")
+          $Bundle = Join-Path $App "GIT\MeTube-SRT-COMPLETE-GIT-HISTORY.bundle"
+
+          if (-not (Get-Command git -ErrorAction SilentlyContinue)) {
+              throw "Git tidak ditemukan. Install Git for Windows terlebih dahulu."
+          }
+          if (-not (Test-Path $Bundle)) { throw "Git Bundle tidak ditemukan: $Bundle" }
+
+          $VerifyDir = Join-Path $env:TEMP ("MeTube-SRT-verify-" + [guid]::NewGuid().ToString("N"))
+          git init --bare $VerifyDir | Out-Null
+          git -C $VerifyDir bundle verify $Bundle
+          if ($LASTEXITCODE -ne 0) { throw "Git Bundle gagal diverifikasi." }
+          Remove-Item -Recurse -Force $VerifyDir
+
+          $Target = Read-Host "Masukkan URL repo GitHub BARU yang masih kosong (contoh https://github.com/akun-baru/MeTube-SRT.git)"
+          if ([string]::IsNullOrWhiteSpace($Target)) { throw "URL tujuan kosong." }
+
+          Write-Host ""
+          Write-Host "TARGET: $Target" -ForegroundColor Yellow
+          Write-Host "Script akan mendorong SEMUA branch dan tag dari bundle ke target tersebut."
+          $Confirm = Read-Host "Ketik PUSH untuk melanjutkan"
+          if ($Confirm -ne "PUSH") {
+              Write-Host "Dibatalkan. Tidak ada data yang dikirim." -ForegroundColor Yellow
+              exit 0
+          }
+
+          $Mirror = Join-Path $env:TEMP ("MeTube-SRT-restore-" + [guid]::NewGuid().ToString("N") + ".git")
+          git clone --mirror $Bundle $Mirror
+          if ($LASTEXITCODE -ne 0) { throw "Gagal clone Git Bundle." }
+          git -C $Mirror remote set-url origin $Target
+          git -C $Mirror push --mirror origin
+          if ($LASTEXITCODE -ne 0) { throw "Push mirror gagal. Periksa login GitHub dan URL tujuan." }
+          Remove-Item -Recurse -Force $Mirror
+          Write-Host "Restore Git selesai. Pasang kembali secret dari REQUIRED_SECRETS.txt lalu jalankan CI/build." -ForegroundColor Green
+          POWERSHELL
+
+          cat > "$APP/RECOVERY/VERIFY_BACKUP.ps1" <<'POWERSHELL'
+          $ErrorActionPreference = "Stop"
+          $Here = Split-Path -Parent $MyInvocation.MyCommand.Path
+          $App = Resolve-Path (Join-Path $Here "..")
+          $ChecksumFile = Join-Path $App "SHA256SUMS.txt"
+          if (-not (Test-Path $ChecksumFile)) { throw "SHA256SUMS.txt tidak ditemukan." }
+          $Bad = 0
+          Get-Content $ChecksumFile | ForEach-Object {
+              if ($_ -match '^([0-9a-fA-F]{64})\s+\*?(.+)$') {
+                  $Expected = $Matches[1].ToLower()
+                  $Rel = $Matches[2] -replace '^\.\\','' -replace '^\./',''
+                  $Path = Join-Path $App $Rel
+                  if (-not (Test-Path $Path)) {
+                      Write-Host "MISSING  $Rel" -ForegroundColor Red
+                      $Bad++
+                  } else {
+                      $Actual = (Get-FileHash -Algorithm SHA256 $Path).Hash.ToLower()
+                      if ($Actual -ne $Expected) {
+                          Write-Host "FAILED   $Rel" -ForegroundColor Red
+                          $Bad++
+                      } else {
+                          Write-Host "OK       $Rel" -ForegroundColor Green
+                      }
+                  }
+              }
+          }
+          if ($Bad -gt 0) { throw "$Bad file gagal verifikasi." }
+          Write-Host "Semua checksum aplikasi PASS." -ForegroundColor Green
+          POWERSHELL
+
+          cat > "$ROOT/RESTORE_ALL.ps1" <<'POWERSHELL'
+          $ErrorActionPreference = "Stop"
+          $Root = Split-Path -Parent $MyInvocation.MyCommand.Path
+          Write-Host "MASTER BACKUP — PILIH APLIKASI"
+          Write-Host "[1] MeTube-SRT"
+          Write-Host "[0] Batal"
+          $Choice = Read-Host "Pilih nomor"
+          switch ($Choice) {
+              "1" { & (Join-Path $Root "APP_001_MeTube-SRT\RECOVERY\RESTORE_TO_NEW_GITHUB.ps1") }
+              "0" { Write-Host "Dibatalkan." }
+              default { throw "Pilihan tidak dikenal." }
+          }
+          POWERSHELL
+
+          cat > "$ROOT/VERIFY_ALL_BACKUP.ps1" <<'POWERSHELL'
+          $ErrorActionPreference = "Stop"
+          $Root = Split-Path -Parent $MyInvocation.MyCommand.Path
+          $ChecksumFile = Join-Path $Root "00_SHA256SUMS.txt"
+          if (-not (Test-Path $ChecksumFile)) { throw "00_SHA256SUMS.txt tidak ditemukan." }
+          $Bad = 0
+          Get-Content $ChecksumFile | ForEach-Object {
+              if ($_ -match '^([0-9a-fA-F]{64})\s+\*?(.+)$') {
+                  $Expected = $Matches[1].ToLower()
+                  $Rel = $Matches[2] -replace '^\.\\','' -replace '^\./',''
+                  $Path = Join-Path $Root $Rel
+                  if (-not (Test-Path $Path)) {
+                      Write-Host "MISSING  $Rel" -ForegroundColor Red
+                      $Bad++
+                  } else {
+                      $Actual = (Get-FileHash -Algorithm SHA256 $Path).Hash.ToLower()
+                      if ($Actual -ne $Expected) {
+                          Write-Host "FAILED   $Rel" -ForegroundColor Red
+                          $Bad++
+                      } else {
+                          Write-Host "OK       $Rel" -ForegroundColor Green
+                      }
+                  }
+              }
+          }
+          if ($Bad -gt 0) { throw "$Bad file gagal verifikasi." }
+          Write-Host "MASTER BACKUP checksum PASS." -ForegroundColor Green
+          POWERSHELL
+
+          GENERATED_WIB="$(TZ=Asia/Jakarta date '+%Y-%m-%d %H:%M:%S WIB')"
+          cat > "$ROOT/00_README_PERTAMA.txt" <<EOF
+          MASTER BACKUP MeTube-SRT — KHUSUS SATU REPO
+
+          Backup ini hanya untuk aplikasi/repo MeTube-SRT.
+          Tidak ada repo aplikasi lain yang dimasukkan.
+
+          Tanggal/jam permintaan backup: ${BACKUP_REQUESTED_WIB}
+          Tanggal/jam pembuatan paket: ${GENERATED_WIB}
+
+          Mulai dari:
+          1. Jalankan VERIFY_ALL_BACKUP.ps1.
+          2. Baca APP_001_MeTube-SRT/README_RESTORE.txt.
+          3. Untuk restore ke GitHub baru, gunakan RESTORE_ALL.ps1.
+
+          Secret/API key/token/password TIDAK sengaja disimpan di paket.
+          EOF
+
+          cat > "$ROOT/00_BACKUP_INFO.txt" <<EOF
+          BACKUP_SCOPE=MeTube-SRT only
+          ORIGINAL_REPO=https://github.com/${GITHUB_REPOSITORY}
+          BACKUP_REQUESTED_WIB=${BACKUP_REQUESTED_WIB}
+          BACKUP_GENERATED_WIB=${GENERATED_WIB}
+          DEFAULT_BRANCH=main
+          MAIN_COMMIT=${MAIN_COMMIT}
+          LATEST_DEVELOPMENT_BRANCH=step09/app-shell
+          LATEST_DEVELOPMENT_COMMIT=${DEV_COMMIT}
+          BRANCH_COUNT=${BRANCH_COUNT}
+          TAG_COUNT=${TAG_COUNT}
+          COMMIT_COUNT_ALL_REFS=${COMMIT_COUNT}
+          LATEST_STABLE_RELEASE=${LATEST_STABLE_TAG}
+          BUILD_STATUS=${BUILD_STATUS}
+          EOF
+
+          cat > "$ROOT/00_MASTER_MANIFEST.txt" <<EOF
+          TOTAL_PROJECTS=1
+
+          APP NAME=MeTube-SRT
+          ORIGINAL REPO=https://github.com/${GITHUB_REPOSITORY}
+          BACKUP DATE=${BACKUP_REQUESTED_WIB}
+          MAIN COMMIT=${MAIN_COMMIT}
+          LATEST DEVELOPMENT COMMIT=${DEV_COMMIT}
+          GIT BUNDLE=APP_001_MeTube-SRT/GIT/MeTube-SRT-COMPLETE-GIT-HISTORY.bundle
+          SOURCE SNAPSHOT=APP_001_MeTube-SRT/SOURCE/MeTube-SRT-SOURCE-main.zip
+          DEVELOPMENT SNAPSHOT=APP_001_MeTube-SRT/SOURCE/MeTube-SRT-SOURCE-step09-app-shell.zip
+          BUILD=${BUILD_STATUS}
+          DOCS=APP_001_MeTube-SRT/DOCS
+          RECOVERY SCRIPT=APP_001_MeTube-SRT/RECOVERY/RESTORE_TO_NEW_GITHUB.ps1
+          BACKUP STATUS=BACKUP_COMPLETE
+          CHECKSUM STATUS=VERIFIED
+          EOF
+
+          cat > "$ROOT/00_MASTER_MANIFEST.csv" <<EOF
+          APP_NAME,ORIGINAL_REPO,DEFAULT_BRANCH,MAIN_COMMIT,LATEST_DEVELOPMENT_BRANCH,LATEST_DEVELOPMENT_COMMIT,BRANCH_COUNT,TAG_COUNT,SOURCE_STATUS,BUILD_STATUS,DOCUMENTATION_STATUS,BACKUP_STATUS
+          MeTube-SRT,https://github.com/${GITHUB_REPOSITORY},main,${MAIN_COMMIT},step09/app-shell,${DEV_COMMIT},${BRANCH_COUNT},${TAG_COUNT},SOURCE_MAIN_AND_DEVELOPMENT_PRESENT,${BUILD_STATUS},PRESENT,BACKUP_COMPLETE
+          EOF
+
+          cat > "$APP/STATUS_BACKUP.txt" <<EOF
+          BACKUP_STATUS=BACKUP_COMPLETE
+          SOURCE_STATUS=SOURCE_MAIN_AND_DEVELOPMENT_PRESENT
+          GIT_BUNDLE_STATUS=VERIFIED
+          BUILD_STATUS=${BUILD_STATUS}
+          DOCUMENTATION_STATUS=PRESENT
+          SECRET_SCAN=PASS
+          CHECKSUM_STATUS=VERIFIED
+          EOF
+
+          echo "[9/10] Calculate and verify SHA-256 checksums"
+          (
+            cd "$APP"
+            find . -type f ! -name 'SHA256SUMS.txt' -print0 | sort -z | xargs -0 sha256sum > SHA256SUMS.txt
+            sha256sum -c SHA256SUMS.txt >/dev/null
+          )
+          (
+            cd "$ROOT"
+            find . -type f ! -name '00_SHA256SUMS.txt' -print0 | sort -z | xargs -0 sha256sum > 00_SHA256SUMS.txt
+            sha256sum -c 00_SHA256SUMS.txt >/dev/null
+          )
+
+          echo "[10/10] Create final ZIP and perform clean extraction validation"
+          ZIP="MASTER-BACKUP-METUBE-SRT-${BACKUP_STAMP}.zip"
+          rm -f "$ZIP"
+          zip -q -r -9 "$ZIP" "$ROOT"
+          unzip -t "$ZIP" >/dev/null
+
+          VERIFY_EXTRACT="${TMP}/verify-extracted"
+          mkdir -p "$VERIFY_EXTRACT"
+          unzip -q "$ZIP" -d "$VERIFY_EXTRACT"
+          EXROOT="$VERIFY_EXTRACT/$ROOT"
+          (
+            cd "$EXROOT"
+            sha256sum -c 00_SHA256SUMS.txt >/dev/null
+          )
+          unzip -t "$EXROOT/APP_001_MeTube-SRT/SOURCE/MeTube-SRT-SOURCE-main.zip" >/dev/null
+          EX_VERIFY_REPO="${TMP}/verify-extracted.git"
+          git init --bare "$EX_VERIFY_REPO"
+          git -C "$EX_VERIFY_REPO" bundle verify "$EXROOT/APP_001_MeTube-SRT/GIT/MeTube-SRT-COMPLETE-GIT-HISTORY.bundle" >/dev/null
+
+          FILES_IN_ROOT="$(find "$EXROOT" -type f | wc -l | tr -d ' ')"
+          APP_DIRS="$(find "$EXROOT" -maxdepth 1 -type d -name 'APP_*' | wc -l | tr -d ' ')"
+          if [ "$APP_DIRS" -ne 1 ]; then
+            echo "Expected exactly one app folder, found $APP_DIRS" >&2
+            exit 43
+          fi
+
+          cat > "$ROOT/00_VALIDATION_REPORT.txt" <<EOF
+          ZIP_OPEN_TEST=PASS
+          MASTER_CHECKSUM_TEST=PASS
+          APP_CHECKSUM_TEST=PASS
+          GIT_BUNDLE_VERIFY=PASS
+          SOURCE_MAIN_ZIP_TEST=PASS
+          MAIN_COMMIT_RECORDED=PASS
+          BRANCH_REFS_RECORDED=PASS
+          TAG_REFS_RECORDED=PASS
+          RECOVERY_SCRIPTS_PRESENT=PASS
+          STRONG_SECRET_SIGNATURE_SCAN=PASS
+          PROJECT_FOLDER_COUNT=1
+          PROJECT_MANIFEST_COUNT=1
+          FILE_COUNT_BEFORE_FINAL_VALIDATION_REPORT=${FILES_IN_ROOT}
+          STATUS=BACKUP_COMPLETE
+          EOF
+
+          # Refresh checksums after writing the validation report, then recreate final ZIP once.
+          (
+            cd "$ROOT"
+            find . -type f ! -name '00_SHA256SUMS.txt' -print0 | sort -z | xargs -0 sha256sum > 00_SHA256SUMS.txt
+            sha256sum -c 00_SHA256SUMS.txt >/dev/null
+          )
+          rm -f "$ZIP"
+          zip -q -r -9 "$ZIP" "$ROOT"
+          unzip -t "$ZIP" >/dev/null
+          sha256sum "$ZIP"
+          ls -lh "$ZIP"
+
+      - name: Upload one final backup ZIP
+        uses: actions/upload-artifact@v4
+        with:
+          name: MASTER-BACKUP-METUBE-SRT-2026-10-05_17-23_WIB
+          path: MASTER-BACKUP-METUBE-SRT-2026-10-05_17-23_WIB.zip
+          if-no-files-found: error
+          compression-level: 0
+          retention-days: 7
