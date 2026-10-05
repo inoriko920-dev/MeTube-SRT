@@ -22,9 +22,7 @@ class SubtitleTrack:
             raise ValueError("language_code must be non-empty")
 
 
-def select_subtitle(
-    tracks: Iterable[SubtitleTrack], *, requested: bool
-) -> SubtitleTrack | None:
+def select_subtitle(tracks: Iterable[SubtitleTrack], *, requested: bool) -> SubtitleTrack | None:
     """Apply the frozen subtitle policy without translating or guessing.
 
     Priority:
