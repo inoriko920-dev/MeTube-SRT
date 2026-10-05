@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from typing import Protocol
 
-from metube_srt_desktop.application.dto.download import ResolveRequest, ResolvedSource
+from metube_srt_desktop.application.dto.download import ResolvedSource, ResolveRequest
 
 
 class SourceResolverPort(Protocol):
