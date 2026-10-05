@@ -11,7 +11,9 @@ from metube_srt_desktop.presentation.shell.main_window import MainWindow
 def run_desktop(argv: Sequence[str] | None = None) -> int:
     existing = QApplication.instance()
     owns_application = existing is None
-    app = QApplication(list(argv) if argv is not None else sys.argv) if existing is None else existing
+    app = (
+        QApplication(list(argv) if argv is not None else sys.argv) if existing is None else existing
+    )
     if not isinstance(app, QApplication):
         raise RuntimeError("existing Qt application is not QApplication")
 

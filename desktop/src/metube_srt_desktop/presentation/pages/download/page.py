@@ -21,7 +21,9 @@ class DownloadPage(QWidget):
         super().__init__(parent)
         self.setObjectName("page.download")
         layout = QVBoxLayout(self)
-        layout.setContentsMargins(TOKENS.space_lg, TOKENS.space_lg, TOKENS.space_lg, TOKENS.space_lg)
+        layout.setContentsMargins(
+            TOKENS.space_lg, TOKENS.space_lg, TOKENS.space_lg, TOKENS.space_lg
+        )
         layout.setSpacing(TOKENS.space_md)
 
         layout.addWidget(

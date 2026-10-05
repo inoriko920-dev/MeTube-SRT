@@ -12,7 +12,9 @@ class ApiKeysPage(QWidget):
         super().__init__(parent)
         self.setObjectName("page.api_keys")
         layout = QVBoxLayout(self)
-        layout.setContentsMargins(TOKENS.space_lg, TOKENS.space_lg, TOKENS.space_lg, TOKENS.space_lg)
+        layout.setContentsMargins(
+            TOKENS.space_lg, TOKENS.space_lg, TOKENS.space_lg, TOKENS.space_lg
+        )
         layout.setSpacing(TOKENS.space_md)
         layout.addWidget(
             PageHeader(
@@ -39,7 +41,9 @@ class ApiKeysPage(QWidget):
         self.table.setAlternatingRowColors(True)
         self.table.verticalHeader().setVisible(False)
         model = QStandardItemModel(0, 5, self)
-        model.setHorizontalHeaderLabels(["Nama", "API key", "Status", "Prioritas", "Terakhir diuji"])
+        model.setHorizontalHeaderLabels(
+            ["Nama", "API key", "Status", "Prioritas", "Terakhir diuji"]
+        )
         fixtures = [
             ("Gemini Utama", "AIza••••••••7Q", "Aktif", "1", "Baru saja"),
             ("Cadangan 02", "AIza••••••••K2", "Rate Limit", "2", "2 menit lalu"),
