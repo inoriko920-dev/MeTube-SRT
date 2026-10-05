@@ -78,9 +78,17 @@ jobs:
         run: uv run python -m metube_srt_desktop --self-check
 
       - name: Secret scan
-        run: >-
-          uv run detect-secrets scan --all-files
-          --exclude-files "(\.venv|uv\.lock|build|dist)"
+        shell: pwsh
+        run: |
+          $json = uv run detect-secrets scan --all-files --exclude-files "(\.venv|uv\.lock|build|dist|\.pytest_cache|\.ruff_cache|\.import_linter_cache)"
+          $report = $json | ConvertFrom-Json
+          $findings = @($report.results.PSObject.Properties)
+          if ($findings.Count -gt 0) {
+            $json
+            Write-Error "detect-secrets found $($findings.Count) file(s) with candidate secrets."
+            exit 1
+          }
+          Write-Host "Secret scan: 0 findings"
 
       - name: Upload generated lock
         if: always()
