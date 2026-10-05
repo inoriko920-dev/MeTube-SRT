@@ -1,41 +1,53 @@
-name: STEP 08 Bootstrap Overlay
+name: STEP 08 Format And Lock
 
 on:
   push:
     branches:
       - step08/bootstrap-overlay
     paths:
-      - '.step08-bootstrap/**'
       - '.github/workflows/step08-bootstrap.yml'
 
 permissions:
   contents: write
 
 jobs:
-  materialize:
-    runs-on: ubuntu-latest
+  format-lock:
+    runs-on: windows-latest
     steps:
-      - name: Checkout staging branch
+      - name: Checkout desktop task branch
         uses: actions/checkout@v4
         with:
+          ref: step08/desktop-skeleton
           fetch-depth: 0
 
-      - name: Reconstruct verified overlay
-        shell: bash
-        run: |
-          set -euo pipefail
-          cat .step08-bootstrap/part1.bin .step08-bootstrap/part2.bin > /tmp/step08-overlay.zip
-          echo 'bf67b3fe73cd7d6559d38443d9c165e60f909f0bf8a35e9b98464e2ea89ace97  /tmp/step08-overlay.zip' | sha256sum -c -
-          unzip -oq /tmp/step08-overlay.zip -d .
-          rm -rf .step08-bootstrap .github/workflows/step08-bootstrap.yml /tmp/step08-overlay.zip
-          rm -f .github/workflows/desktop-ci.yml
+      - name: Install uv
+        uses: astral-sh/setup-uv@v10.2.0
+        with:
+          version: '0.12.23'
 
-      - name: Commit clean STEP 08 foundation without workflow file
-        shell: bash
+      - name: Install Python
+        working-directory: desktop
+        run: uv python install 3.13.16
+
+      - name: Generate lock and sync
+        working-directory: desktop
         run: |
-          set -euo pipefail
+          uv lock
+          uv sync --all-groups
+
+      - name: Apply Ruff formatter
+        working-directory: desktop
+        run: uv run ruff format .
+
+      - name: Commit formatter and lock output
+        shell: pwsh
+        run: |
           git config user.name 'github-actions[bot]'
           git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
-          git add -A
-          git commit -m 'build(desktop): add STEP 08 repository foundation'
-          git push origin HEAD:refs/heads/step08/desktop-skeleton
+          git add desktop/uv.lock desktop/src desktop/tests desktop/scripts
+          if (-not (git diff --cached --quiet)) {
+            git commit -m 'chore(desktop): format source and lock dependencies'
+            git push origin HEAD:refs/heads/step08/desktop-skeleton
+          } else {
+            Write-Host 'No formatting or lock changes required.'
+          }
