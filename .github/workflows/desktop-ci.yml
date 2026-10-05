@@ -78,7 +78,9 @@ jobs:
         run: uv run python -m metube_srt_desktop --self-check
 
       - name: Secret scan
-        run: uv run detect-secrets scan --all-files --exclude-files "uv\.lock"
+        run: >-
+          uv run detect-secrets scan --all-files
+          --exclude-files "(\.venv|uv\.lock|build|dist)"
 
       - name: Upload generated lock
         if: always()
