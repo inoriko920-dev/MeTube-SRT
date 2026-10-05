@@ -132,7 +132,7 @@ def test_job_spec_rejects_non_http_url_and_embedded_credentials() -> None:
     with pytest.raises(ValueError, match="embedded credentials"):
         JobSpec(
             job_id="job",
-            source_url="https://user:password@example.com/video",
+            source_url="https://user@example.com/video",
             output_directory="Downloads",
             quality=QualityPreset.BEST,
             selected_subtitle=None,
