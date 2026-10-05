@@ -1,0 +1,127 @@
+name: STEP 08 UI Reference Import
+
+on:
+  push:
+    branches:
+      - step08/ui-reference-storage-final
+    paths:
+      - ".github/workflows/step08-ui-reference-import.yml"
+      - ".step08-ui-import/**"
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  import-ui-references:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          ref: step08/ui-reference-storage-final
+          fetch-depth: 0
+
+      - name: Reconstruct and validate archive
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p /tmp/ui-import
+          cat .step08-ui-import/ui_refs.b64.part00 | base64 -d > /tmp/ui-import/ui_refs.zip
+          unzip -t /tmp/ui-import/ui_refs.zip
+          unzip -o /tmp/ui-import/ui_refs.zip -d /tmp/ui-import/extracted
+          test "$(find /tmp/ui-import/extracted -maxdepth 1 -type f -name 'UI_*.webp' | wc -l)" -eq 10
+
+      - name: Install missing references
+        shell: bash
+        run: |
+          set -euo pipefail
+          target="docs/software-factory/step-05/ui-reference"
+          mkdir -p "$target"
+          cp /tmp/ui-import/extracted/UI_*.webp "$target/"
+          test "$(find "$target" -maxdepth 1 -type f -name 'UI_*.webp' | wc -l)" -eq 20
+
+      - name: Finalize manifest and contract test
+        shell: python
+        run: |
+          import hashlib
+          import json
+          from pathlib import Path
+
+          repo = Path.cwd()
+          manifest_path = repo / "docs/desktop/UI_REFERENCES/manifest.json"
+          data = json.loads(manifest_path.read_text(encoding="utf-8"))
+          target = repo / "docs/software-factory/step-05/ui-reference"
+
+          by_id = {}
+          for path in target.glob("UI_*.webp"):
+              ui_id = path.name[:5]
+              by_id[ui_id] = path
+
+          if len(by_id) != 20:
+              raise SystemExit(f"expected 20 reference files, got {len(by_id)}")
+
+          for item in data["items"]:
+              ui_id = item["id"]
+              path = by_id.get(ui_id)
+              if path is None:
+                  raise SystemExit(f"missing reference for {ui_id}")
+              rel = path.relative_to(repo).as_posix()
+              item["status"] = "authoritative_in_git"
+              item["path"] = rel
+              item["reference_format"] = "webp"
+              item["reference_sha256"] = hashlib.sha256(path.read_bytes()).hexdigest()
+              item["note"] = (
+                  "STEP 05 frozen UI reference stored in Git. "
+                  "master_sha256 identifies the original PNG master; reference_sha256 identifies the Git WebP derivative."
+              )
+
+          data["master_hashes_complete"] = True
+          data["git_reference_bytes_complete"] = True
+          data["git_reference_count"] = 20
+          data["storage_note"] = (
+              "All 20 frozen master PNG SHA-256 values are recorded and all 20 UI references are stored in Git as WebP derivatives."
+          )
+          manifest_path.write_text(json.dumps(data, indent=2, ensure_ascii=False) + "\n", encoding="utf-8")
+
+          test_path = repo / "desktop/tests/contract/test_ui_manifest.py"
+          test_path.write_text(
+              '''import hashlib\nimport json\nfrom pathlib import Path\n\n\ndef test_ui_manifest_has_twenty_complete_references() -> None:\n    desktop_root = Path(__file__).resolve().parents[2]\n    repo_root = desktop_root.parent\n    manifest_path = repo_root / "docs" / "desktop" / "UI_REFERENCES" / "manifest.json"\n    data = json.loads(manifest_path.read_text(encoding="utf-8"))\n\n    items = data["items"]\n    ids = [item["id"] for item in items]\n\n    assert data["expected_count"] == 20\n    assert len(items) == 20\n    assert len(set(ids)) == 20\n    assert ids == [f"UI_{index:02d}" for index in range(1, 21)]\n    assert data["master_hashes_complete"] is True\n    assert data["git_reference_bytes_complete"] is True\n    assert data["git_reference_count"] == 20\n\n    for item in items:\n        assert item["status"] == "authoritative_in_git"\n        assert item["master_sha256"]\n        assert item["reference_sha256"]\n        assert item["reference_format"] == "webp"\n        reference = repo_root / item["path"]\n        assert reference.is_file()\n        assert hashlib.sha256(reference.read_bytes()).hexdigest() == item["reference_sha256"]\n''',
+              encoding="utf-8",
+          )
+
+      - name: Update STEP 08 evidence
+        shell: python
+        run: |
+          from pathlib import Path
+
+          repo = Path.cwd()
+          evidence = repo / "docs/desktop/TEST_EVIDENCE/STEP_08_BASELINE.md"
+          text = evidence.read_text(encoding="utf-8")
+          text = text.replace(
+              "UI repository storage completeness: **10/20 authoritative repair refs already in Git; 10 frozen refs pending byte upload**",
+              "UI repository storage completeness: **20/20 frozen UI references stored in Git; all master PNG SHA-256 values retained in manifest**",
+          )
+          evidence.write_text(text, encoding="utf-8")
+
+          state = repo / "docs/desktop/PROJECT_STATE.md"
+          s = state.read_text(encoding="utf-8")
+          s += "\n## UI reference storage closure\n\n- UI reference bytes in Git: **20/20**.\n- Master PNG SHA-256 retained: **20/20**.\n- Visual-regression storage prerequisite: **READY**.\n"
+          state.write_text(s, encoding="utf-8")
+
+      - name: Remove temporary importer
+        shell: bash
+        run: |
+          rm -rf .step08-ui-import
+          rm -f .github/workflows/step08-ui-reference-import.yml
+
+      - name: Commit finalized references
+        shell: bash
+        run: |
+          set -euo pipefail
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add -A
+          git status --short
+          git commit -m "docs(desktop): complete 20 UI freeze references"
+          git push origin HEAD:step08/ui-reference-storage-final
