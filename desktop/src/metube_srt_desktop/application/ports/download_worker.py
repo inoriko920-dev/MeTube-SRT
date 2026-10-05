@@ -11,6 +11,8 @@ class DownloadWorkerPort(Protocol):
 
     def events(self) -> Iterable[WorkerEnvelope]:
         """Yield sanitized, ordered worker events."""
+        ...
 
     def request_cancel(self) -> None:
         """Request cooperative cancellation without blocking the UI thread."""
+        ...
