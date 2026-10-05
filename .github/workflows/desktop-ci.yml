@@ -5,6 +5,7 @@ on:
     branches:
       - main
       - "step08/**"
+      - "step09/**"
     paths:
       - "desktop/**"
       - "docs/desktop/**"
@@ -77,6 +78,9 @@ jobs:
       - name: Package self-check
         run: uv run python -m metube_srt_desktop --self-check
 
+      - name: Capture STEP 09 shell screenshot
+        run: uv run python scripts/capture_step09_shell.py
+
       - name: Secret scan
         shell: pwsh
         run: |
@@ -89,6 +93,14 @@ jobs:
             exit 1
           }
           Write-Host "Secret scan: 0 findings"
+
+      - name: Upload STEP 09 shell screenshot
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: step09-app-shell-screenshot
+          path: desktop/build/step09-evidence/step09-app-shell.png
+          if-no-files-found: warn
 
       - name: Upload generated lock
         if: always()
