@@ -56,14 +56,14 @@ def test_original_auto_caption_is_selected_when_manual_track_is_absent() -> None
 
 def test_playlist_entries_expand_to_typed_items() -> None:
     first = video_info()
-    second = {
+    second: dict[str, object] = {
         "id": "def456",
         "title": "Video 2",
         "webpage_url": "https://www.youtube.com/watch?v=def456",
         "subtitles": {},
         "automatic_captions": {},
     }
-    raw = {
+    raw: dict[str, object] = {
         "id": "PL123",
         "title": "Playlist",
         "entries": [first, second],
@@ -79,7 +79,7 @@ def test_playlist_entries_expand_to_typed_items() -> None:
 
 
 def test_channel_url_is_classified_without_inferring_from_title() -> None:
-    raw = {
+    raw: dict[str, object] = {
         "id": "channel",
         "title": "Channel uploads",
         "entries": [video_info()],
@@ -94,7 +94,7 @@ def test_channel_url_is_classified_without_inferring_from_title() -> None:
 
 
 def test_unknown_collection_shape_is_rejected_instead_of_guessed() -> None:
-    raw = {
+    raw: dict[str, object] = {
         "id": "collection",
         "title": "Unknown collection",
         "entries": [video_info()],
