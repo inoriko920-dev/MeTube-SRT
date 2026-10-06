@@ -109,15 +109,18 @@ Acceptance evidence:
 
 - ASTRA audit reproduced 7/7 stabilization bugs at baseline `9686ca1`;
 - SOL implemented B01–B07 without UI redesign or legacy runtime changes;
-- stabilized code baseline: `825848fbb2123531b66861a31627ea5e383c5633`;
-- Desktop CI run `37504191788`: SUCCESS — 181 passed plus format/lint/Pyright/import/foundation/self-check/screenshot/secret gates;
-- legacy CI run `37504191498`: SUCCESS;
-- Windows preview build run `37504182757`: SUCCESS;
-- preview artifact id `11431501234`, digest `sha256:cf8331adf59d51a4e64fbf2415663ff16123fe33602570ead2a6246455c684c0`;
+- ASTRA B01–B07 stabilized code baseline: `825848fbb2123531b66861a31627ea5e383c5633`;
+- latest automated maturity baseline: `261f1bd560667024389c508944896d2754344023`;
+- Desktop CI run `37513841827`: SUCCESS — 187 passed plus format/lint/Pyright/import/foundation/self-check/screenshot/secret gates;
+- legacy CI run `37513841856`: SUCCESS;
+- Windows preview build run `37513834241`: SUCCESS;
+- preview artifact id `11436576507`, digest `sha256:a27e22969709609f0626e5e80d91b94d6562678cd480f85639a7f3dbde73e61d`;
+- cross-process lock, forced-crash recovery, busy-bootstrap guard, Unicode/spaces path, invalid output target, postprocess cancel, archive re-extraction, credential self-check, and extracted worker smoke: VERIFIED_AUTOMATED_WINDOWS;
 - B01–B07 status: IMPLEMENTED + VERIFIED_FIXTURE;
-- normal-PC behavioral qualification remains PENDING;
-- live YouTube is not declared PASS; hosted-runner anti-bot results remain `BLOCKED_ENVIRONMENT`;
-- S10-001 stays **IN QUALIFICATION**, not DONE/stable, until Windows/live evidence is recorded.
+- deterministic Windows behavioral qualification is materially expanded and green;
+- real YouTube/SRT live behavior on a non-datacenter network is still not declared PASS; hosted-runner anti-bot results remain `BLOCKED_ENVIRONMENT`;
+- real Windows ACL-denied destination behavior and real Gemini-key qualification remain external gates;
+- S10-001 stays **IN QUALIFICATION**, not falsely marked DONE/stable, until those genuinely external gates are recorded.
 **ASTRA trigger**
 
 Any architecture-direction change, new top-level module, replacement of the worker boundary, subtitle-policy change, WebEngine/browser dependency, or new material runtime dependency.

@@ -5,7 +5,8 @@
 - STEP 09 native app shell remains merged on `main`.
 - STEP 10 is active in pull request **#5 — Real download core foundation** on `step10/download-core`.
 - ASTRA bug-audit baseline: `9686ca1ca40058f2b527b60ce88a63cab55305dc`.
-- Stabilized desktop code baseline after SOL fixes: `825848fbb2123531b66861a31627ea5e383c5633`.
+- ASTRA B01–B07 stabilized code baseline: `825848fbb2123531b66861a31627ea5e383c5633`.
+- Latest automated maturity baseline: `261f1bd560667024389c508944896d2754344023`.
 - Legacy web runtime remains present and protected; this batch did not redesign UI or replace the legacy Docker release.
 
 ## STEP 10 capabilities implemented
@@ -44,29 +45,33 @@ These labels do **not** mean VERIFIED_LIVE. They mean the audited scenarios are 
 
 ## Deterministic verification
 
-Desktop CI run **37504191788** on `825848fbb2123531b66861a31627ea5e383c5633`: **SUCCESS**.
+Desktop CI run **37513841827** on `261f1bd560667024389c508944896d2754344023`: **SUCCESS**.
 
 - Ruff format: PASS;
 - Ruff lint: PASS;
 - Pyright strict: PASS;
 - import-linter: PASS;
-- pytest: **181 passed**;
+- pytest: **187 passed**;
 - live qualification wrapper validation: PASS;
 - foundation check: PASS;
 - package self-check: PASS;
 - STEP 09 screenshot capture: PASS;
 - secret scan: PASS — 0 findings.
 
-Legacy CI run **37504191498** on the same SHA: **SUCCESS**.
+Legacy CI run **37513841856** on the same SHA: **SUCCESS**.
 
 ## Windows preview build
 
-Desktop Windows Preview Build run **37504182757** on the same SHA: **SUCCESS**.
+Desktop Windows Preview Build run **37513834241** on the same SHA: **SUCCESS**.
 
 - artifact: `MeTube-SRT-Windows-x64-Preview`;
-- artifact id: `11431501234`;
-- artifact size: `224663914` bytes;
-- artifact digest: `sha256:cf8331adf59d51a4e64fbf2415663ff16123fe33602570ead2a6246455c684c0`.
+- artifact id: `11436576507`;
+- artifact size: `224666735` bytes;
+- artifact digest: `sha256:a27e22969709609f0626e5e80d91b94d6562678cd480f85639a7f3dbde73e61d`;
+- packaged desktop self-check: PASS before ZIP and after re-extraction;
+- packaged credential self-check: PASS before ZIP and after re-extraction;
+- packaged worker READY/CANCELLED smoke: PASS before ZIP and after re-extraction;
+- required archive structure + BUILD_INFO source SHA: PASS.
 
 This proves the portable preview package can be built from the stabilized code. It does **not** by itself prove two-instance behavior, crash recovery, writable/fallback paths, Unicode paths, or real YouTube/Gemini behavior on a normal user PC.
 
@@ -78,18 +83,25 @@ This proves the portable preview package can be built from the stabilized code. 
 - **VERIFIED_LIVE YouTube:** not declared PASS.
 - Prior hosted-runner live qualification remains **BLOCKED_ENVIRONMENT** when YouTube returns `LOGIN_REQUIRED` / anti-bot responses.
 
-Required normal-PC checks include:
+Automated Windows/fixture qualification now also covers:
 
-- two instances against the same data directory;
-- crash/restart and stale-lock recovery;
-- cancellation during download/postprocessing;
-- portable data directory and fallback directory;
-- Unicode/spaces and non-writable output paths;
-- single video, flat playlist, root channel with multiple tabs;
-- SRT available and unavailable;
-- final media/SRT existence/readability;
-- Gemini overlap/out-of-order/cooldown/timeout cases using safe test profiles where available.
+- exclusive runtime lock across separate processes on Windows CI;
+- stale-lock recovery after forced owner-process termination;
+- bootstrap refusal before runtime/database construction when the data directory is busy;
+- cancellation during postprocessing plus existing download cancellation boundaries;
+- portable data directory and LocalAppData fallback selection;
+- Unicode/spaces output directories;
+- invalid output target failure without false OUTPUT_READY/SUCCESS;
+- Gemini profile-bound late-result handling, cooldown preservation, transport retry, and cancellation;
+- ZIP re-extraction and packaged self/credential/worker smoke.
+
+Still requires genuine external/live evidence rather than simulation:
+
+- real YouTube single video, flat playlist, and root channel with multiple tabs on a non-datacenter network;
+- real SRT available/unavailable outcomes and final media/SRT readability from YouTube;
+- Windows ACL-denied/non-writable destination behavior on a real restricted filesystem;
+- real Gemini request using a user-configured valid API key.
 
 ## Next action
 
-Run the normal-PC Windows qualification from the stabilized build and record the evidence separately. Do not call the desktop release “stable” until those Windows/live gates are closed honestly.
+Keep S10-001 in qualification for the genuinely external/live gates above. The deterministic application, Windows CI, packaging, lock/crash, path, cancellation, queue, Gemini-race, and archive gates are green; do not mislabel hosted YouTube anti-bot blocking as an application failure or as a live PASS.
