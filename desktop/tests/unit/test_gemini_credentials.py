@@ -36,7 +36,7 @@ def test_registry_keeps_raw_key_out_of_profile_metadata() -> None:
     profiles = MemoryProfiles()
     secrets = MemorySecrets()
     registry = GeminiCredentialRegistry(profiles, secrets)
-    raw_key = "AIzaSyExampleLongSecretKey123456789"
+    raw_key = "not-a-real-key-xxxxxxxxxxxxxxxxxxxxxxxx"
 
     profile = registry.add_profile("Utama", raw_key)
 
@@ -53,21 +53,21 @@ def test_import_keys_assigns_stable_priorities() -> None:
 
     created = registry.import_keys(
         (
-            "AIzaSyExampleLongSecretKey000000001",
-            "AIzaSyExampleLongSecretKey000000002",
+            "fake-key-one-xxxxxxxxxxxxxxxxxxxxxxxx",
+            "fake-key-two-xxxxxxxxxxxxxxxxxxxxxxxx",
         )
     )
 
     assert [item.priority for item in created] == [1, 2]
     assert [item.label for item in created] == ["Gemini 01", "Gemini 02"]
-    assert registry.active_secret() == "AIzaSyExampleLongSecretKey000000001"
+    assert registry.active_secret() == "fake-key-one-xxxxxxxxxxxxxxxxxxxxxxxx"
 
 
 def test_mark_active_status_updates_only_metadata() -> None:
     profiles = MemoryProfiles()
     secrets = MemorySecrets()
     registry = GeminiCredentialRegistry(profiles, secrets)
-    raw_key = "AIzaSyExampleLongSecretKey000000003"
+    raw_key = "fake-key-three-xxxxxxxxxxxxxxxxxxxxxx"
     registry.add_profile("Utama", raw_key)
 
     registry.mark_active_status("Aktif")
