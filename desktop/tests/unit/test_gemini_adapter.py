@@ -17,13 +17,13 @@ class FakeAPIError(Exception):
 
 
 class FakeModels:
-    def __init__(self, api_key: str, calls: list[str]) -> None:
-        self._api_key = api_key
+    def __init__(self, credential: str, calls: list[str]) -> None:
+        self._credential = credential
         self._calls = calls
 
     def generate_content(self, **kwargs: object) -> object:
-        self._calls.append(self._api_key)
-        if self._api_key == "bad-key":
+        self._calls.append(self._credential)
+        if self._credential == "bad-key":
             raise FakeAPIError(401)
         return SimpleNamespace(text="Siap, key kedua berhasil.")
 
@@ -31,7 +31,7 @@ class FakeModels:
 class FakeClient:
     calls: ClassVar[list[str]] = []
 
-    def __init__(self, *, api_key: str) -> None:
+    def __init__(self, *, credential: str) -> None:
         self.models = FakeModels(api_key, type(self).calls)
 
     def close(self) -> None:
@@ -73,11 +73,11 @@ def test_generate_reply_does_not_rotate_rate_limit(
 ) -> None:
     class RateLimitedModels(FakeModels):
         def generate_content(self, **kwargs: object) -> object:
-            self._calls.append(self._api_key)
+            self._calls.append(self._credential)
             raise FakeAPIError(429)
 
     class RateLimitedClient(FakeClient):
-        def __init__(self, *, api_key: str) -> None:
+        def __init__(self, *, credential: str) -> None:
             self.models = RateLimitedModels(api_key, type(self).calls)
 
     monkeypatch.setattr(gemini_module.errors, "APIError", FakeAPIError)
