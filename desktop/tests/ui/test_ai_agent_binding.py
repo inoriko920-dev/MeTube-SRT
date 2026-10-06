@@ -161,7 +161,6 @@ def test_ai_panel_redacts_secret_and_does_not_call_provider(qtbot: QtBot) -> Non
         queue.shutdown(wait=True)
 
 
-
 def test_ai_panel_redacts_full_cookie_header_tail(qtbot: QtBot) -> None:
     class CountingProvider(HumanProvider):
         def __init__(self) -> None:
