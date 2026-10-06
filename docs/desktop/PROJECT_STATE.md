@@ -2,65 +2,62 @@
 
 ## Verified baseline
 
-- Factory step completed: **STEP 09 — Native App Shell / UI Implementation**.
-- STEP 08 foundation remains verified and preserved.
-- STEP 09 working branch: `step09/app-shell`.
-- Verified STEP 09 head before evidence checkpoint: `bd53a91fc4b7caa4260fe2ea07f96117ac4e5242`.
-- Pull request: #4.
-- Windows Desktop CI PR run: `37353004219` — **SUCCESS**.
-- Legacy MeTube-SRT CI PR run: `37353004216` — **SUCCESS**.
+- STEP 09 native app shell is merged on `main`.
+- STEP 10 is active in pull request **#5 — Real download core foundation**.
+- STEP 10 implementation is complete through native UI/runtime composition.
 - Legacy web runtime remains present and protected.
 
-## Verified STEP 09 capabilities
+## STEP 10 capabilities already implemented
 
-- real native PySide6 `QMainWindow` exists;
-- global navigation is fixed to Unduh / Antrian / API Gemini / Pengaturan;
-- central routing uses `QStackedWidget`;
-- Download page exposes the frozen SRT checkbox object contract;
-- right AI Agent workspace shell exists and can collapse;
-- Download / Queue / API Keys / Settings native fixture pages render;
-- centralized design tokens and QSS exist;
-- Pyright strict passes with 0 errors / 0 warnings;
-- all three import-linter architecture contracts pass;
-- pytest: **14 passed**;
-- foundation self-check passes;
-- package `python -m metube_srt_desktop --self-check` passes;
-- Windows CI captures the STEP 09 shell screenshot at 1440×900;
-- enforced detect-secrets gate reports 0 findings;
-- legacy frontend/backend CI remains green.
+The native manual path is wired without Gemini:
 
-## Toolchain currently locked
+- typed single / playlist / channel resolve;
+- frozen subtitle policy: manual/creator -> proven original auto-generated -> none;
+- no automatic subtitle translation;
+- isolated yt-dlp child worker with typed NDJSON protocol;
+- parent subprocess adapter with stale-event and sequence validation;
+- cooperative cancellation with terminate/kill escalation;
+- application-owned job lifecycle;
+- bounded queue scheduler;
+- durable SQLite queue/restart recovery;
+- resolve -> plan -> enqueue composition;
+- Qt Download/Queue controller binding;
+- real runtime composition from UI to resolver/queue/worker;
+- progress, output, success, failure, cancellation, and interrupted state propagation.
 
-- CPython 3.13.16
-- uv 0.12.22
-- PySide6 6.11.2
-- yt-dlp 2026.8.19
-- google-genai 2.28.0
-- keyring 25.7.0
-- Ruff 0.16.10
-- Pyright 1.1.414
-- pytest 9.1.1
-- pytest-qt 4.5.0
-- import-linter 2.15
-- detect-secrets 1.5.0
+## Core verification
 
-## Honest provisional items
+At the last verified core checkpoint:
 
-- Only 10/20 frozen UI reference image bytes are currently stored in Git (`UI_04`, `UI_08`–`UI_16`).
-- The remaining 10 frozen master images have authoritative filenames and SHA-256 values in the manifest, but their repository byte storage is still pending.
-- The native UI is still fixture-driven; live desktop yt-dlp execution is not yet connected.
-- Live Gemini command execution, real API-key storage/rotation, production FFmpeg/Deno bundling, updater, and release packaging are not yet verified.
+- Ruff format/lint: PASS;
+- Pyright strict: PASS — 0 errors / 0 warnings;
+- import-linter: PASS — 3 kept / 0 broken;
+- pytest: PASS — 84 passed;
+- foundation and package self-checks: PASS;
+- STEP 09 screenshot regression: PASS;
+- secret scan: PASS — 0 findings;
+- legacy CI: PASS.
 
-## Locked product behavior for the next feature wave
+## Live qualification status
 
-- target remains a real Windows desktop app;
-- single video, playlist, and channel downloads must remain supported;
-- `Download subtitle (SRT)` is optional;
-- creator/manual subtitle has priority;
-- original auto-generated caption is the fallback;
-- subtitles must never be auto-translated;
-- lack of subtitles must not fail the video download.
+**BLOCKED_ENVIRONMENT on GitHub-hosted runners; not declared PASS.**
+
+GitHub-hosted Windows runners were able to provision Deno and FFmpeg, but YouTube returned `LOGIN_REQUIRED / Sign in to confirm you’re not a bot` before public-video resolve completed. The same result was reproduced by invoking upstream yt-dlp directly against multiple current/public fixtures, so no MeTube-SRT protocol/state bug is inferred from that runner failure.
+
+No account cookies, browser credentials, proxy secrets, or extractor bypasses were added to force a green CI result.
+
+A local Windows qualification wrapper now exists for a normal/non-datacenter network. Its evidence ZIP is the required input to close the live-network portion of S10-001.
+
+## Still out of scope for this checkpoint
+
+- production FFmpeg/Deno portable staging;
+- packaged worker/runtime publication;
+- Gemini command execution and API-key rotation;
+- updater/release publication;
+- UI redesign.
 
 ## Next action
 
-Proceed to **S10-001 — Real download core: resolve, enqueue, video + optional SRT**. Connect the native shell to the application/worker boundary using the locked subtitle policy. Do not begin Gemini command execution or redesign the frozen UI during this wave.
+Run `desktop/scripts/run_live_qualification_windows.ps1` on a normal Windows network and review `desktop/build/live-qualification-evidence.zip`.
+
+Do not advance to production tool staging or Gemini until the live manual path is genuinely qualified.
