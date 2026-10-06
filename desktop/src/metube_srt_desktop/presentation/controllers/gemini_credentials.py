@@ -3,6 +3,7 @@ from __future__ import annotations
 from collections.abc import Callable
 from contextlib import suppress
 from dataclasses import dataclass
+from functools import partial
 from pathlib import Path
 from typing import cast
 from uuid import uuid4
@@ -163,7 +164,7 @@ class GeminiCredentialsController(QObject):
         self._page.test_button.setDisabled(True)
         request_id = uuid4().hex
         if isinstance(self._provider, AIProviderProfileCheckPort):
-            check_call = lambda: self._provider.check_profile(active_profile.profile_id)
+            check_call = partial(self._provider.check_profile, active_profile.profile_id)
         else:
             check_call = self._provider.check
         task = _CheckTask(
