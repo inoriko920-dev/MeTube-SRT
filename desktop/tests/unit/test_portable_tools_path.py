@@ -11,6 +11,7 @@ import metube_srt_desktop.bootstrap.app_bootstrap as app_bootstrap
 from metube_srt_desktop.bootstrap.app_bootstrap import (
     application_data_directory,
     configure_portable_tools,
+    portable_fallback_directory,
 )
 
 
@@ -108,3 +109,45 @@ def test_configure_portable_tools_exports_explicit_deno_path(
     configure_portable_tools()
 
     assert os.environ["METUBE_SRT_DENO_PATH"] == str(deno.resolve())
+
+
+
+def test_portable_fallback_directory_reports_local_app_data(
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path,
+) -> None:
+    app = tmp_path / "MeTube-SRT.exe"
+    app.write_bytes(b"")
+    (tmp_path / "portable.flag").write_text("portable", encoding="ascii")
+    fallback = tmp_path / "fallback"
+    monkeypatch.delenv("METUBE_SRT_DATA_DIR", raising=False)
+    monkeypatch.setattr(sys, "frozen", True, raising=False)
+    monkeypatch.setattr(sys, "executable", str(app))
+    monkeypatch.setattr(
+        "metube_srt_desktop.bootstrap.app_bootstrap._ensure_writable_directory",
+        lambda directory: False,
+    )
+    monkeypatch.setattr(
+        "metube_srt_desktop.bootstrap.app_bootstrap.QStandardPaths.writableLocation",
+        lambda location: str(fallback),
+    )
+
+    assert portable_fallback_directory() == fallback
+
+
+def test_portable_fallback_directory_is_none_when_portable_data_is_writable(
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path,
+) -> None:
+    app = tmp_path / "MeTube-SRT.exe"
+    app.write_bytes(b"")
+    (tmp_path / "portable.flag").write_text("portable", encoding="ascii")
+    monkeypatch.delenv("METUBE_SRT_DATA_DIR", raising=False)
+    monkeypatch.setattr(sys, "frozen", True, raising=False)
+    monkeypatch.setattr(sys, "executable", str(app))
+    monkeypatch.setattr(
+        "metube_srt_desktop.bootstrap.app_bootstrap._ensure_writable_directory",
+        lambda directory: True,
+    )
+
+    assert portable_fallback_directory() is None

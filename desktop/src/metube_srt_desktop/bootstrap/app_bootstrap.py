@@ -7,7 +7,7 @@ from pathlib import Path
 from tempfile import NamedTemporaryFile
 
 from PySide6.QtCore import QStandardPaths
-from PySide6.QtWidgets import QApplication
+from PySide6.QtWidgets import QApplication, QMessageBox
 
 from metube_srt_desktop.adapters.ai import GeminiAdapter
 from metube_srt_desktop.adapters.credentials import KeyringGeminiSecretStore
@@ -73,6 +73,18 @@ def run_desktop(argv: Sequence[str] | None = None) -> int:
     app.aboutToQuit.connect(lambda: queue.shutdown(wait=True, cancel_active=True))
     window.show()
 
+    fallback_directory = portable_fallback_directory()
+    if fallback_directory is not None:
+        QMessageBox.warning(
+            window,
+            "Mode portable",
+            (
+                "Folder portable tidak dapat ditulis. "
+                "Data aplikasi akan disimpan di LocalAppData:\n"
+                f"{fallback_directory}"
+            ),
+        )
+
     if owns_application:
         return app.exec()
     return 0
@@ -132,3 +144,20 @@ def configure_portable_tools() -> None:
     path_parts = [part for part in current_path.split(os.pathsep) if part]
     if tools_text.casefold() not in {part.casefold() for part in path_parts}:
         os.environ["PATH"] = os.pathsep.join((tools_text, *path_parts))
+
+
+
+def portable_fallback_directory() -> Path | None:
+    if os.environ.get("METUBE_SRT_DATA_DIR", "").strip():
+        return None
+    if not getattr(sys, "frozen", False):
+        return None
+
+    app_directory = Path(sys.executable).resolve().parent
+    if not (app_directory / "portable.flag").is_file():
+        return None
+    if _ensure_writable_directory(app_directory / "data"):
+        return None
+
+    raw_path = QStandardPaths.writableLocation(QStandardPaths.StandardLocation.AppLocalDataLocation)
+    return Path(raw_path) if raw_path else None
