@@ -263,9 +263,11 @@ def test_shutdown_continues_when_one_active_cancel_fails() -> None:
         def __init__(self, fail: bool) -> None:
             self.fail = fail
             self.cancel_calls = 0
+            self.started = Event()
             self.release = Event()
 
         def events(self) -> Iterable[WorkerEnvelope]:
+            self.started.set()
             self.release.wait(timeout=2)
             return ()
 
@@ -293,14 +295,13 @@ def test_shutdown_continues_when_one_active_cancel_fails() -> None:
     queue = BoundedDownloadQueue(factory, concurrency=2)
     queue.enqueue_many((make_job(1), make_job(2)))
 
-    deadline = Event()
-    for worker in factory.workers:
-        worker.release.set()
-    assert queue.active_count <= 2
-    deadline.set()
+    assert len(factory.workers) == 2
+    assert factory.workers[0].started.wait(1.0)
+    assert factory.workers[1].started.wait(1.0)
 
     queue.shutdown(wait=False, cancel_active=True)
 
-    assert len(factory.workers) == 2
     assert factory.workers[0].cancel_calls == 1
     assert factory.workers[1].cancel_calls == 1
+
+    factory.workers[0].release.set()
