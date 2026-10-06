@@ -14,6 +14,9 @@ Setiap ZIP release dikunci ke Docker image dengan tag versi yang sama melalui `V
 
 Riwayat perubahan ada di [`CHANGELOG.md`](CHANGELOG.md).
 
+
+> **Catatan native desktop:** bagian **Latest Release** di atas masih menunjuk rilis stabil legacy berbasis Docker. Native PySide6 desktop yang sedang dikerjakan di PR #5 / branch `step10/download-core` adalah **Windows Preview untuk pengujian**, bukan pengganti rilis stabil. Jangan menganggap artifact preview sebagai release final sebelum qualification Windows/live selesai.
+
 Saat opsi SRT aktif:
 
 - video tetap di-download seperti biasa;
