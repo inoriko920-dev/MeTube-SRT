@@ -105,6 +105,14 @@ Acceptance evidence:
 - UI redesign outside the frozen contract;
 - production FFmpeg/Deno bundling and updater/release publication.
 
+**Current qualification status**
+
+- implementation through native UI/runtime composition is complete on PR #5;
+- deterministic core CI is green;
+- GitHub-hosted live YouTube qualification is `BLOCKED_ENVIRONMENT` because upstream yt-dlp itself receives YouTube LOGIN_REQUIRED anti-bot responses;
+- local Windows qualification wrapper/evidence bundle is the next required checkpoint;
+- do not claim S10 live PASS until that evidence succeeds on a normal network.
+
 **ASTRA trigger**
 
 Any architecture-direction change, new top-level module, replacement of the worker boundary, subtitle-policy change, WebEngine/browser dependency, or new material runtime dependency.

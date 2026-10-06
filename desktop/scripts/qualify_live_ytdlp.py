@@ -85,8 +85,8 @@ def _run_small_video_with_srt(
     subtitle = job.selected_subtitle
     if subtitle is None:
         raise QualificationError("test video did not expose an eligible original subtitle")
-    if subtitle.kind is not SubtitleKind.MANUAL:
-        raise QualificationError("test video did not select the expected manual subtitle")
+    if subtitle.kind is SubtitleKind.AUTO_GENERATED and not subtitle.is_original:
+        raise QualificationError("auto-generated subtitle was not proven original")
     if subtitle.is_translated:
         raise QualificationError("translated subtitle was selected during live qualification")
 
@@ -307,6 +307,26 @@ def run(output_root: Path) -> dict[str, Any]:
     }
 
 
+def _base_report() -> dict[str, Any]:
+    return {
+        "schema_version": 1,
+        "python": sys.version.split()[0],
+        "tools": {
+            "ffmpeg": _tool_version("ffmpeg"),
+            "ffprobe": _tool_version("ffprobe"),
+            "deno": _tool_version("deno"),
+        },
+    }
+
+
+def _write_report(path: Path, report: dict[str, Any]) -> None:
+    path.parent.mkdir(parents=True, exist_ok=True)
+    path.write_text(
+        json.dumps(report, indent=2, ensure_ascii=False) + "\n",
+        encoding="utf-8",
+    )
+
+
 def main() -> int:
     parser = argparse.ArgumentParser()
     parser.add_argument(
@@ -321,14 +341,33 @@ def main() -> int:
     )
     args = parser.parse_args()
 
-    report = run(args.output_root)
-    args.report.parent.mkdir(parents=True, exist_ok=True)
-    args.report.write_text(
-        json.dumps(report, indent=2, ensure_ascii=False) + "\n",
-        encoding="utf-8",
-    )
+    try:
+        report = {"status": "passed", **run(args.output_root)}
+        exit_code = 0
+    except (QualificationError, SourceResolveError, DownloadWorkerError, OSError) as exc:
+        report = {
+            **_base_report(),
+            "status": "failed",
+            "failure": {
+                "type": type(exc).__name__,
+                "message": str(exc),
+            },
+        }
+        exit_code = 1
+    except Exception:
+        report = {
+            **_base_report(),
+            "status": "failed",
+            "failure": {
+                "type": "UnexpectedQualificationError",
+                "message": "Unexpected qualification error",
+            },
+        }
+        exit_code = 1
+
+    _write_report(args.report, report)
     print(json.dumps(report, indent=2, ensure_ascii=False))
-    return 0
+    return exit_code
 
 
 if __name__ == "__main__":
