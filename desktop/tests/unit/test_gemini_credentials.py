@@ -326,7 +326,6 @@ def test_mark_active_status_preserves_cooldown_until_success() -> None:
     assert profiles.items[profile.profile_id].cooldown_until is None
 
 
-
 def test_targeted_status_update_never_marks_new_active_profile() -> None:
     profiles = MemoryProfiles()
     secrets = MemorySecrets()
