@@ -191,9 +191,8 @@ class GeminiAdapter(AIProviderPort):
                 self._check_with_key(api_key)
                 return
             except AIProviderError as exc:
-                if (
-                    exc.error_code != "network_error"
-                    or retry_index >= len(_TRANSIENT_RETRY_DELAYS_SECONDS)
+                if exc.error_code != "network_error" or retry_index >= len(
+                    _TRANSIENT_RETRY_DELAYS_SECONDS
                 ):
                     raise
                 self._sleep(_TRANSIENT_RETRY_DELAYS_SECONDS[retry_index])
