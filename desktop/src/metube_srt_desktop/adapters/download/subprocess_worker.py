@@ -127,8 +127,6 @@ class SubprocessWorkerAdapter(DownloadWorkerPort):
         self._cancel_grace_seconds = cancel_grace_seconds
         self._terminate_grace_seconds = terminate_grace_seconds
         self._terminal_exit_grace_seconds = terminal_exit_grace_seconds
-        self._resolve_lock = Lock()
-        self._current_worker: SubprocessWorkerAdapter | None = None
 
         self._process: WorkerProcess | None = None
         self._write_lock = RLock()
@@ -382,6 +380,8 @@ class SubprocessSourceResolver(SourceResolverPort):
         self._worker_run_id_factory = worker_run_id_factory
         self._terminate_grace_seconds = terminate_grace_seconds
         self._terminal_exit_grace_seconds = terminal_exit_grace_seconds
+        self._resolve_lock = Lock()
+        self._current_worker: SubprocessWorkerAdapter | None = None
 
     def cancel_current(self) -> None:
         with self._resolve_lock:
