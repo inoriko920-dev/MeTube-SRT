@@ -226,3 +226,22 @@ def test_download_page_default_output_directory_is_absolute(qtbot: QtBot) -> Non
         assert output.name == "MeTube-SRT"
     finally:
         queue.shutdown(wait=True)
+
+
+
+def test_resolve_rejects_non_youtube_url_before_worker(qtbot: QtBot) -> None:
+    resolver = FakeResolver()
+    queue = BoundedDownloadQueue(ImmediateWorkerFactory())
+    window = MainWindow(resolver=resolver, queue=queue)
+    qtbot.addWidget(window)
+    window.show()
+
+    try:
+        window.download_page.url_input.setText("https://example.com/video")
+        window.download_page.resolve_button.click()
+
+        assert resolver.requests == []
+        assert window.download_page.state_title.text() == "Tidak dapat melanjutkan"
+        assert window.download_page.state_text.text() == "Masukkan URL YouTube yang valid."
+    finally:
+        queue.shutdown(wait=True)

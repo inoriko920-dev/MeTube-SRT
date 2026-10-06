@@ -111,8 +111,8 @@ class DownloadQueueController(QObject):
         raw_url = self._download_page.url_input.text().strip()
         try:
             request = ResolveRequest(raw_url)
-        except ValueError:
-            self._download_page.show_error("Masukkan URL YouTube terlebih dahulu.")
+        except ValueError as exc:
+            self._download_page.show_error(_safe_validation_message(exc))
             return
 
         self._set_busy(True)
@@ -295,6 +295,10 @@ def _safe_validation_message(error: ValueError) -> str:
     message = str(error).strip()
     if "output_directory" in message:
         return "Pilih folder tujuan download."
+    if "source_url must be non-empty" in message:
+        return "Masukkan URL YouTube terlebih dahulu."
+    if "YouTube URL" in message or "absolute http" in message or "embedded credentials" in message:
+        return "Masukkan URL YouTube yang valid."
     return "Periksa kembali URL dan opsi download."
 
 
