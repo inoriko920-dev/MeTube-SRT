@@ -312,7 +312,6 @@ def test_cancel_current_closes_active_client_and_stops_retry(
     assert delays == []
 
 
-
 def test_identified_invalid_callback_is_bound_to_request_profile(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
@@ -364,7 +363,6 @@ def test_profile_check_uses_exact_profile_secret_not_current_active(
     adapter.check_profile("profile-a")
 
     assert FakeClient.calls == ["exact-a"]
-
 
 
 @pytest.mark.parametrize("error_type", [httpx.ConnectError, httpx.ReadTimeout])
