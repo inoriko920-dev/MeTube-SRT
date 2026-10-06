@@ -19,7 +19,7 @@ from metube_srt_desktop.application.download_planning import (
     DownloadSelection,
     plan_download_jobs,
 )
-from metube_srt_desktop.application.dto.download import ResolveRequest, ResolvedSource
+from metube_srt_desktop.application.dto.download import ResolvedSource, ResolveRequest
 from metube_srt_desktop.application.dto.worker_protocol import WorkerEnvelope, WorkerEventType
 from metube_srt_desktop.application.ports.download_worker import DownloadWorkerError
 from metube_srt_desktop.application.ports.source_resolver import SourceResolveError

@@ -60,10 +60,18 @@ jobs:
 
       - name: Diagnose upstream YouTube access
         continue-on-error: true
-        run: >-
-          uv run yt-dlp -v --skip-download --no-playlist
-          --extractor-args "youtube:skip=translated_subs"
-          "https://www.youtube.com/watch?v=BaW_jenozKc"
+        shell: pwsh
+        run: |
+          $urls = @(
+            "https://www.youtube.com/watch?v=YE7VzlLtp-4",
+            "https://www.youtube.com/watch?v=gHKT4uU8Zng",
+            "https://www.youtube.com/watch?v=f6HNySwZV4c",
+            "https://www.youtube.com/watch?v=wsQiKKfKxug"
+          )
+          foreach ($url in $urls) {
+            Write-Host "=== PROBE $url ==="
+            uv run yt-dlp -v --skip-download --no-playlist --list-subs --extractor-args "youtube:skip=translated_subs" $url
+          }
 
       - name: Run live yt-dlp qualification
         run: uv run python scripts/qualify_live_ytdlp.py

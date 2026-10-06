@@ -3,10 +3,10 @@ from __future__ import annotations
 import shutil
 
 import pytest
+from scripts import qualify_live_ytdlp as qualification
 
 from metube_srt_desktop.application.dto.download import ResolvedItem, ResolvedSource
 from metube_srt_desktop.domain.jobs import SourceKind
-from scripts import qualify_live_ytdlp as qualification
 
 
 def test_live_qualification_defaults_use_upstream_test_resources() -> None:
