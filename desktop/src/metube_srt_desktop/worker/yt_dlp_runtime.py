@@ -43,6 +43,10 @@ class DownloadCancellationRequested(RuntimeError):
     """Internal control-flow exception raised only from yt-dlp hooks."""
 
 
+class DownloadOutputMissingError(RuntimeError):
+    """Raised when a media operation produces no verifiable final file."""
+
+
 def _default_ydl_factory(options: dict[str, object]) -> YoutubeDLSession:
     from yt_dlp import YoutubeDL
 
@@ -99,11 +103,13 @@ def download_job_live(
         raise ValueError("yt-dlp download result must be an object")
 
     outputs = list(
-        _collect_output_paths(
+        _collect_media_output_paths(
             cast(Mapping[str, object], raw_info),
             output_directory=job.output_directory,
         )
     )
+    if not outputs:
+        raise DownloadOutputMissingError("download produced no verifiable media output")
 
     if job.selected_subtitle is not None:
         subtitle_outputs = _download_selected_subtitle(
@@ -195,39 +201,65 @@ def _numeric(value: object) -> int | float | None:
     return None
 
 
-def _collect_output_paths(
+def _collect_media_output_paths(
     raw_info: Mapping[str, object],
     *,
     output_directory: str,
 ) -> tuple[str, ...]:
-    candidates: list[str] = []
-    _append_path_candidate(candidates, raw_info.get("filepath"))
-    _append_path_candidate(candidates, raw_info.get("_filename"))
+    final_candidates: list[str] = []
+    _append_path_candidate(final_candidates, raw_info.get("filepath"))
+    _append_path_candidate(final_candidates, raw_info.get("_filename"))
+
+    for candidate in final_candidates:
+        safe = _safe_existing_output_path(output_directory, candidate)
+        if safe is not None:
+            return (safe,)
 
     requested_downloads = raw_info.get("requested_downloads")
     if isinstance(requested_downloads, Sequence) and not isinstance(
         requested_downloads, (str, bytes, bytearray)
     ):
         for entry in cast(Sequence[object], requested_downloads):
-            if isinstance(entry, Mapping):
-                mapping = cast(Mapping[str, object], entry)
-                _append_path_candidate(candidates, mapping.get("filepath"))
-                _append_path_candidate(candidates, mapping.get("filename"))
+            if not isinstance(entry, Mapping):
+                continue
+            mapping = cast(Mapping[str, object], entry)
+            candidates: list[str] = []
+            _append_path_candidate(candidates, mapping.get("filepath"))
+            _append_path_candidate(candidates, mapping.get("filename"))
+            for candidate in candidates:
+                safe = _safe_existing_output_path(output_directory, candidate)
+                if safe is not None:
+                    return (safe,)
 
+    return ()
+
+
+def _collect_subtitle_output_paths(
+    raw_info: Mapping[str, object],
+    *,
+    output_directory: str,
+) -> tuple[str, ...]:
     requested_subtitles = raw_info.get("requested_subtitles")
-    if isinstance(requested_subtitles, Mapping):
-        subtitle_map = cast(Mapping[object, object], requested_subtitles)
-        for value in subtitle_map.values():
-            if isinstance(value, Mapping):
-                mapping = cast(Mapping[str, object], value)
-                _append_path_candidate(candidates, mapping.get("filepath"))
-                _append_path_candidate(candidates, mapping.get("filename"))
+    if not isinstance(requested_subtitles, Mapping):
+        return ()
 
     safe_paths: list[str] = []
-    for candidate in candidates:
-        safe = _safe_output_path(output_directory, candidate)
-        if safe is not None and safe not in safe_paths:
-            safe_paths.append(safe)
+    subtitle_map = cast(Mapping[object, object], requested_subtitles)
+    for value in subtitle_map.values():
+        if not isinstance(value, Mapping):
+            continue
+        mapping = cast(Mapping[str, object], value)
+        candidates: list[str] = []
+        _append_path_candidate(candidates, mapping.get("filepath"))
+        _append_path_candidate(candidates, mapping.get("filename"))
+        for candidate in candidates:
+            safe = _safe_existing_output_path(
+                output_directory,
+                candidate,
+                required_suffix=".srt",
+            )
+            if safe is not None and safe not in safe_paths:
+                safe_paths.append(safe)
     return tuple(safe_paths)
 
 
@@ -236,7 +268,12 @@ def _append_path_candidate(target: list[str], value: object) -> None:
         target.append(value)
 
 
-def _safe_output_path(output_directory: str, candidate: str) -> str | None:
+def _safe_existing_output_path(
+    output_directory: str,
+    candidate: str,
+    *,
+    required_suffix: str | None = None,
+) -> str | None:
     base = Path(output_directory).expanduser().resolve(strict=False)
     path = Path(candidate).expanduser()
     if path.is_absolute():
@@ -249,9 +286,14 @@ def _safe_output_path(output_directory: str, candidate: str) -> str | None:
             resolved = (base / path).resolve(strict=False)
         else:
             resolved = from_cwd
+
     try:
         resolved.relative_to(base)
     except ValueError:
+        return None
+    if required_suffix is not None and resolved.suffix.casefold() != required_suffix.casefold():
+        return None
+    if not resolved.is_file():
         return None
     return str(resolved)
 
@@ -277,10 +319,16 @@ def _download_selected_subtitle(
             raise DownloadCancellationRequested
         if not isinstance(raw_info, Mapping):
             raise ValueError("yt-dlp subtitle result must be an object")
-        return _collect_output_paths(
+        outputs = _collect_subtitle_output_paths(
             cast(Mapping[str, object], raw_info),
             output_directory=job.output_directory,
         )
+        if not outputs:
+            emit(
+                WorkerEventType.WARNING,
+                {"message": ("Subtitle tidak tersedia sebagai SRT; video tetap disimpan tanpa subtitle")},
+            )
+        return outputs
     except DownloadCancellationRequested:
         raise
     except Exception:

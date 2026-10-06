@@ -15,6 +15,7 @@ from metube_srt_desktop.application.dto.worker_protocol import (
 )
 from metube_srt_desktop.worker.yt_dlp_runtime import (
     DownloadCancellationRequested,
+    DownloadOutputMissingError,
     YoutubeDLFactory,
     download_job_live,
     resolve_source_live,
@@ -105,6 +106,15 @@ def run_worker(
     except DownloadCancellationRequested:
         emitter.emit(WorkerEventType.CANCELLED, {"reason": "requested"})
         return 0
+    except DownloadOutputMissingError:
+        emitter.emit(
+            WorkerEventType.FAILED,
+            {
+                "error_code": "output_missing",
+                "message": "Download selesai tanpa file media final yang dapat diverifikasi",
+            },
+        )
+        return 1
     except ValueError:
         emitter.emit(
             WorkerEventType.FAILED,

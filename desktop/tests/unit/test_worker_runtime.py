@@ -76,10 +76,13 @@ class FakeYoutubeDL:
         paths = cast(Mapping[str, object], output_dir)
         home = paths["home"]
         assert isinstance(home, str)
+        output_path = Path(home) / "Video [abc].mp4"
+        output_path.parent.mkdir(parents=True, exist_ok=True)
+        output_path.write_bytes(b"video")
         return {
             "id": "abc",
             "title": "Video",
-            "filepath": str(Path(home) / "Video [abc].mp4"),
+            "filepath": str(output_path),
         }
 
 
@@ -341,3 +344,132 @@ def test_subtitle_failure_warns_but_keeps_successful_video(tmp_path: Path) -> No
     assert events[-1].event_type is WorkerEventType.SUCCEEDED
     warning = next(event for event in events if event.event_type is WorkerEventType.WARNING)
     assert "video tetap disimpan" in str(warning.payload["message"]).lower()
+
+
+
+def test_subtitle_only_metadata_cannot_announce_fake_media_path(tmp_path: Path) -> None:
+    class MissingSubtitleYoutubeDL(FakeYoutubeDL):
+        def extract_info(self, url: str, *, download: bool) -> object:
+            if self.options.get("skip_download") is True:
+                return {
+                    "id": "abc",
+                    "title": "Video",
+                    "_filename": str(tmp_path / "never-downloaded.mp4"),
+                    "requested_subtitles": {},
+                }
+            media = tmp_path / "actual.webm"
+            media.write_bytes(b"video")
+            return {
+                "id": "abc",
+                "title": "Video",
+                "filepath": str(media),
+            }
+
+    job = JobSpec(
+        job_id="job-no-srt",
+        source_url="https://www.youtube.com/watch?v=abc",
+        output_directory=str(tmp_path),
+        quality=QualityPreset.BEST,
+        selected_subtitle=SubtitleTrack(
+            language_code="id",
+            kind=SubtitleKind.MANUAL,
+            is_original=True,
+        ),
+    )
+    command = WorkerCommandEnvelope.for_download(job, worker_run_id="run-no-srt")
+    output = StringIO()
+
+    rc = run_worker(StringIO(command.to_json_line()), output, ydl_factory=MissingSubtitleYoutubeDL)
+
+    assert rc == 0
+    events = _events(output)
+    output_paths = [
+        str(event.payload["path"])
+        for event in events
+        if event.event_type is WorkerEventType.OUTPUT_READY
+    ]
+    assert output_paths == [str(tmp_path / "actual.webm")]
+    assert not any("never-downloaded.mp4" in path for path in output_paths)
+    assert any(event.event_type is WorkerEventType.WARNING for event in events)
+
+
+def test_missing_media_file_fails_instead_of_reporting_success(tmp_path: Path) -> None:
+    class MissingMediaYoutubeDL(FakeYoutubeDL):
+        def extract_info(self, url: str, *, download: bool) -> object:
+            return {
+                "id": "abc",
+                "title": "Video",
+                "filepath": str(tmp_path / "does-not-exist.mp4"),
+            }
+
+    job = JobSpec(
+        job_id="job-missing-media",
+        source_url="https://www.youtube.com/watch?v=abc",
+        output_directory=str(tmp_path),
+        quality=QualityPreset.BEST,
+        selected_subtitle=None,
+    )
+    command = WorkerCommandEnvelope.for_download(job, worker_run_id="run-missing-media")
+    output = StringIO()
+
+    rc = run_worker(StringIO(command.to_json_line()), output, ydl_factory=MissingMediaYoutubeDL)
+
+    assert rc == 1
+    events = _events(output)
+    assert not any(event.event_type is WorkerEventType.OUTPUT_READY for event in events)
+    assert events[-1].event_type is WorkerEventType.FAILED
+    assert events[-1].payload["error_code"] == "output_missing"
+
+
+def test_existing_srt_is_announced_with_media_without_warning(tmp_path: Path) -> None:
+    class SubtitleYoutubeDL(FakeYoutubeDL):
+        def extract_info(self, url: str, *, download: bool) -> object:
+            if self.options.get("skip_download") is True:
+                subtitle_path = tmp_path / "Video [abc].id.srt"
+                subtitle_path.write_text("1\n00:00:00,000 --> 00:00:01,000\nHalo\n", encoding="utf-8")
+                return {
+                    "id": "abc",
+                    "title": "Video",
+                    "_filename": str(tmp_path / "never-downloaded.mp4"),
+                    "requested_subtitles": {
+                        "id": {
+                            "filepath": str(subtitle_path),
+                        }
+                    },
+                }
+            media = tmp_path / "actual.mp4"
+            media.write_bytes(b"video")
+            return {
+                "id": "abc",
+                "title": "Video",
+                "filepath": str(media),
+            }
+
+    job = JobSpec(
+        job_id="job-with-srt",
+        source_url="https://www.youtube.com/watch?v=abc",
+        output_directory=str(tmp_path),
+        quality=QualityPreset.BEST,
+        selected_subtitle=SubtitleTrack(
+            language_code="id",
+            kind=SubtitleKind.MANUAL,
+            is_original=True,
+        ),
+    )
+    command = WorkerCommandEnvelope.for_download(job, worker_run_id="run-with-srt")
+    output = StringIO()
+
+    rc = run_worker(StringIO(command.to_json_line()), output, ydl_factory=SubtitleYoutubeDL)
+
+    assert rc == 0
+    events = _events(output)
+    output_paths = [
+        str(event.payload["path"])
+        for event in events
+        if event.event_type is WorkerEventType.OUTPUT_READY
+    ]
+    assert output_paths == [
+        str(tmp_path / "actual.mp4"),
+        str(tmp_path / "Video [abc].id.srt"),
+    ]
+    assert not any(event.event_type is WorkerEventType.WARNING for event in events)
