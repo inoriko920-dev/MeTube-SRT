@@ -292,3 +292,59 @@ def test_relative_output_directory_is_normalized_before_enqueue(qtbot: QtBot) ->
         assert output.name == "relative-output"
     finally:
         queue.shutdown(wait=True)
+
+
+
+def test_subtitle_warning_shows_success_without_srt(qtbot: QtBot) -> None:
+    class SubtitleWarningWorker(ImmediateWorker):
+        def events(self) -> Iterable[WorkerEnvelope]:
+            yield _event(self.job_id, self.worker_run_id, WorkerEventType.READY, 0)
+            yield WorkerEnvelope(
+                schema_version=WORKER_PROTOCOL_VERSION,
+                event_type=WorkerEventType.WARNING,
+                job_id=self.job_id,
+                worker_run_id=self.worker_run_id,
+                sequence=1,
+                payload={
+                    "message": (
+                        "Subtitle tidak berhasil diambil; video tetap disimpan tanpa subtitle"
+                    )
+                },
+            )
+            yield _event(self.job_id, self.worker_run_id, WorkerEventType.SUCCEEDED, 2)
+
+    class SubtitleWarningFactory:
+        def create(
+            self,
+            job: JobSpec,
+            *,
+            worker_run_id: str,
+        ) -> DownloadWorkerPort:
+            return SubtitleWarningWorker(job.job_id, worker_run_id)
+
+    resolver = FakeResolver()
+    queue = BoundedDownloadQueue(SubtitleWarningFactory())
+    window = MainWindow(resolver=resolver, queue=queue)
+    qtbot.addWidget(window)
+    window.show()
+
+    try:
+        window.download_page.url_input.setText(resolver.source.source_url)
+        window.download_page.enqueue_button.click()
+
+        qtbot.waitUntil(
+            lambda: (
+                len(queue.snapshots()) == 1
+                and queue.snapshots()[0].state is JobState.SUCCEEDED
+            ),
+            timeout=2000,
+        )
+        qtbot.waitUntil(
+            lambda: window.queue_page.model.rowCount() == 1
+            and window.queue_page.model.item(0, 2).text() == "Selesai (tanpa SRT)",
+            timeout=2000,
+        )
+
+        assert window.queue_page.model.item(0, 4).text() == "Tidak ada"
+    finally:
+        queue.shutdown(wait=True)

@@ -179,7 +179,7 @@ class DownloadQueueController(QObject):
                 kind="Video",
                 status=_status_label(snapshot),
                 progress=_progress_label(snapshot),
-                srt=_subtitle_label(spec),
+                srt=_subtitle_label(spec, snapshot),
             )
 
         self._queue_page.set_counts(
@@ -296,6 +296,8 @@ def _status_label(snapshot: JobRuntimeSnapshot) -> str:
         detail = snapshot.error_message or snapshot.error_code
         if detail:
             return f"{label}: {detail}"
+    if snapshot.state is JobState.SUCCEEDED and _subtitle_warning(snapshot):
+        return "Selesai (tanpa SRT)"
     return label
 
 
@@ -307,12 +309,17 @@ def _progress_label(snapshot: JobRuntimeSnapshot) -> str:
     return f"{snapshot.progress_percent:.0f}%"
 
 
-def _subtitle_label(spec: JobSpec | None) -> str:
-    if spec is None or spec.selected_subtitle is None:
+def _subtitle_label(spec: JobSpec | None, snapshot: JobRuntimeSnapshot) -> str:
+    if spec is None or spec.selected_subtitle is None or _subtitle_warning(snapshot):
         return "Tidak ada"
     if spec.selected_subtitle.kind is SubtitleKind.MANUAL:
         return "Manual"
     return "Auto asli"
+
+
+def _subtitle_warning(snapshot: JobRuntimeSnapshot) -> bool:
+    warning = snapshot.warning_message
+    return warning is not None and "subtitle" in warning.casefold()
 
 
 def _safe_validation_message(error: ValueError) -> str:
