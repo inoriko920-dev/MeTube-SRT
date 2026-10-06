@@ -250,7 +250,6 @@ def _safe_output_path(output_directory: str, candidate: str) -> str | None:
     return str(resolved)
 
 
-
 def _download_selected_subtitle(
     job: JobSpec,
     *,
@@ -281,10 +280,6 @@ def _download_selected_subtitle(
     except Exception:
         emit(
             WorkerEventType.WARNING,
-            {
-                "message": (
-                    "Subtitle tidak berhasil diambil; video tetap disimpan tanpa subtitle"
-                )
-            },
+            {"message": ("Subtitle tidak berhasil diambil; video tetap disimpan tanpa subtitle")},
         )
         return ()

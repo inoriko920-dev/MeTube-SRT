@@ -195,7 +195,6 @@ def test_invalid_success_payload_is_rejected() -> None:
     assert caught.value.error_code == "invalid_resolve_payload"
 
 
-
 class RunningFakeProcess(FakeProcess):
     def poll(self) -> int | None:
         return None

@@ -118,7 +118,6 @@ def test_ai_controller_ignores_new_messages_after_window_close(qtbot: QtBot) -> 
         queue.shutdown(wait=True)
 
 
-
 def test_ai_panel_redacts_secret_and_does_not_call_provider(qtbot: QtBot) -> None:
     class CountingProvider(HumanProvider):
         def __init__(self) -> None:

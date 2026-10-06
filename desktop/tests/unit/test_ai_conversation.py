@@ -91,7 +91,6 @@ def test_missing_key_returns_friendly_human_response() -> None:
     assert "menu API Gemini" in reply.text
 
 
-
 def test_secret_like_message_is_blocked_before_provider_call() -> None:
     provider = FakeProvider()
     conversation = HumanlikeAIConversation(provider)

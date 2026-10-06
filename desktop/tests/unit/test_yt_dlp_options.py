@@ -43,7 +43,6 @@ def test_options_keep_deno_enabled_without_explicit_path(
     assert build_resolve_options()["js_runtimes"] == {"deno": {}}
 
 
-
 def test_subtitle_only_options_do_not_redownload_media() -> None:
     job = JobSpec(
         job_id="job-sub",

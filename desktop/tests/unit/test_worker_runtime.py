@@ -303,7 +303,6 @@ def test_runtime_entrypoint_is_after_failure_classifier() -> None:
     assert classifier_index < entrypoint_index
 
 
-
 def test_subtitle_failure_warns_but_keeps_successful_video(tmp_path: Path) -> None:
     class SubtitleFailYoutubeDL(FakeYoutubeDL):
         calls = 0
