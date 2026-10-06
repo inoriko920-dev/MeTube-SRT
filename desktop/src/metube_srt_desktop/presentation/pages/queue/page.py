@@ -87,20 +87,15 @@ class QueuePage(QWidget):
 
         for column, value in enumerate(values):
             item = self.model.item(row, column)
-            if item is not None and item.text() != value:
+            if item.text() != value:
                 item.setText(value)
 
     def request_cancel_selected(self) -> None:
-        selection = self.table.selectionModel()
-        if selection is None:
-            return
-        rows = selection.selectedRows()
+        rows = self.table.selectionModel().selectedRows()
         if not rows:
             return
 
         first = self.model.item(rows[0].row(), 0)
-        if first is None:
-            return
         job_id = first.data(Qt.ItemDataRole.UserRole)
         if isinstance(job_id, str) and job_id:
             self.cancel_requested.emit(job_id)
