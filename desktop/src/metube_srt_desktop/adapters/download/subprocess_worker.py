@@ -155,17 +155,13 @@ class SubprocessWorkerAdapter(DownloadWorkerPort):
 
         if terminal_event is None:
             return_code = process.wait()
-            raise WorkerProcessError(
-                f"worker exited without a terminal event (code {return_code})"
-            )
+            raise WorkerProcessError(f"worker exited without a terminal event (code {return_code})")
 
         return_code = self._wait_after_terminal(process)
         if terminal_event.event_type is WorkerEventType.FAILED:
             return
         if return_code != 0:
-            raise WorkerProcessError(
-                f"worker exited with code {return_code} after terminal event"
-            )
+            raise WorkerProcessError(f"worker exited with code {return_code} after terminal event")
 
     def request_cancel(self) -> None:
         """Send cooperative cancellation and escalate asynchronously if required."""
