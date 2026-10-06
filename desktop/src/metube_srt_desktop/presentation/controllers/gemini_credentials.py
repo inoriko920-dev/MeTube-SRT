@@ -188,6 +188,9 @@ class GeminiCredentialsController(QObject):
             elif result.error.error_code == "network_error":
                 status = "Gangguan jaringan"
                 message = "Gemini belum bisa dihubungi dari koneksi ini."
+            elif result.error.error_code == "permission_denied":
+                status = "Izin ditolak"
+                message = "Key aktif, tetapi project atau model Gemini tidak mengizinkan akses ini."
         with suppress(CredentialStorageError):
             self._registry.mark_active_status(status)
         self.refresh()

@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import os
 from collections.abc import Callable
+from time import sleep
 from contextlib import suppress
 from typing import Protocol, cast
 
@@ -17,6 +18,7 @@ from metube_srt_desktop.application.ports.credentials import (
 
 _DEFAULT_MODEL = "gemini-2.5-flash"
 _GEMINI_REQUEST_TIMEOUT_MS = 30_000
+_TRANSIENT_RETRY_DELAYS_SECONDS = (0.25, 0.75)
 
 
 class _GenerateModels(Protocol):
@@ -39,10 +41,12 @@ class GeminiAdapter(AIProviderPort):
         model: str | None = None,
         invalid_key_handler: Callable[[], None] | None = None,
         rate_limit_handler: Callable[[], None] | None = None,
+        sleep_fn: Callable[[float], None] = sleep,
     ) -> None:
         self._api_key_source = api_key_source
         self._invalid_key_handler = invalid_key_handler
         self._rate_limit_handler = rate_limit_handler
+        self._sleep = sleep_fn
         self._model = (model or os.environ.get("METUBE_SRT_GEMINI_MODEL") or _DEFAULT_MODEL).strip()
         if not self._model:
             raise ValueError("Gemini model must be non-empty")
@@ -62,7 +66,7 @@ class GeminiAdapter(AIProviderPort):
 
         for _ in range(100):
             try:
-                return self._generate_with_key(
+                return self._generate_with_retries(
                     api_key,
                     system_instruction=system_instruction,
                     contents=contents,
@@ -79,6 +83,29 @@ class GeminiAdapter(AIProviderPort):
                 api_key = next_key
 
         raise AIProviderError("invalid_api_key", "Semua API key Gemini aktif ditolak.")
+
+    def _generate_with_retries(
+        self,
+        api_key: str,
+        *,
+        system_instruction: str,
+        contents: list[types.Content],
+    ) -> str:
+        for retry_index in range(len(_TRANSIENT_RETRY_DELAYS_SECONDS) + 1):
+            try:
+                return self._generate_with_key(
+                    api_key,
+                    system_instruction=system_instruction,
+                    contents=contents,
+                )
+            except AIProviderError as exc:
+                if (
+                    exc.error_code != "network_error"
+                    or retry_index >= len(_TRANSIENT_RETRY_DELAYS_SECONDS)
+                ):
+                    raise
+                self._sleep(_TRANSIENT_RETRY_DELAYS_SECONDS[retry_index])
+        raise AIProviderError("network_error", "Gemini sedang tidak tersedia.")
 
     def _generate_with_key(
         self,
@@ -152,6 +179,27 @@ class GeminiAdapter(AIProviderPort):
 
     def check(self) -> None:
         api_key = self._require_api_key()
+        try:
+            self._check_with_retries(api_key)
+        except AIProviderError as exc:
+            if exc.error_code == "rate_limited":
+                self._mark_rate_limited()
+            raise
+
+    def _check_with_retries(self, api_key: str) -> None:
+        for retry_index in range(len(_TRANSIENT_RETRY_DELAYS_SECONDS) + 1):
+            try:
+                self._check_with_key(api_key)
+                return
+            except AIProviderError as exc:
+                if (
+                    exc.error_code != "network_error"
+                    or retry_index >= len(_TRANSIENT_RETRY_DELAYS_SECONDS)
+                ):
+                    raise
+                self._sleep(_TRANSIENT_RETRY_DELAYS_SECONDS[retry_index])
+
+    def _check_with_key(self, api_key: str) -> None:
         client: genai.Client | None = None
         try:
             client = genai.Client(
@@ -168,10 +216,7 @@ class GeminiAdapter(AIProviderPort):
                 ),
             )
         except errors.APIError as exc:
-            mapped = _map_api_error(exc)
-            if mapped.error_code == "rate_limited":
-                self._mark_rate_limited()
-            raise mapped from exc
+            raise _map_api_error(exc) from exc
         except (OSError, TimeoutError) as exc:
             raise AIProviderError("network_error", "Gemini tidak dapat dijangkau.") from exc
         except Exception as exc:

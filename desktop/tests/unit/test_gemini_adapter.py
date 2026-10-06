@@ -179,3 +179,79 @@ def test_generate_reply_maps_registry_cooldown_without_provider_call() -> None:
     assert getattr(caught.value, "error_code", None) == "rate_limited"
     assert "42 detik" in str(caught.value)
     assert calls == 1
+
+
+
+def test_generate_reply_retries_transient_503_on_same_key(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    class FlakyModels(FakeModels):
+        attempts: ClassVar[int] = 0
+
+        def generate_content(self, **kwargs: object) -> object:
+            self._calls.append(self._credential)
+            type(self).attempts += 1
+            if type(self).attempts < 3:
+                raise FakeAPIError(503)
+            return SimpleNamespace(text="Pulih setelah gangguan sementara.")
+
+    class FlakyClient(FakeClient):
+        def __init__(self, *, api_key: str, http_options: object | None = None) -> None:
+            self.models = FlakyModels(api_key, type(self).calls)
+            type(self).timeouts.append(getattr(http_options, "timeout", None))
+
+    monkeypatch.setattr(gemini_module.errors, "APIError", FakeAPIError)
+    monkeypatch.setattr(gemini_module.genai, "Client", FlakyClient)
+    FlakyClient.calls.clear()
+    FlakyClient.timeouts.clear()
+    FlakyModels.attempts = 0
+    delays: list[float] = []
+
+    adapter = GeminiAdapter(
+        lambda: "same-key",
+        sleep_fn=delays.append,
+    )
+
+    reply = adapter.generate_reply(
+        system_instruction="Balas singkat.",
+        messages=(AIChatMessage(AIChatRole.USER, "halo"),),
+    )
+
+    assert reply == "Pulih setelah gangguan sementara."
+    assert FlakyClient.calls == ["same-key", "same-key", "same-key"]
+    assert delays == [0.25, 0.75]
+
+
+def test_generate_reply_stops_after_transient_retry_budget(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    class DownModels(FakeModels):
+        def generate_content(self, **kwargs: object) -> object:
+            self._calls.append(self._credential)
+            raise FakeAPIError(503)
+
+    class DownClient(FakeClient):
+        def __init__(self, *, api_key: str, http_options: object | None = None) -> None:
+            self.models = DownModels(api_key, type(self).calls)
+            type(self).timeouts.append(getattr(http_options, "timeout", None))
+
+    monkeypatch.setattr(gemini_module.errors, "APIError", FakeAPIError)
+    monkeypatch.setattr(gemini_module.genai, "Client", DownClient)
+    DownClient.calls.clear()
+    DownClient.timeouts.clear()
+    delays: list[float] = []
+
+    adapter = GeminiAdapter(
+        lambda: "same-key",
+        sleep_fn=delays.append,
+    )
+
+    with pytest.raises(Exception) as caught:
+        adapter.generate_reply(
+            system_instruction="Balas singkat.",
+            messages=(AIChatMessage(AIChatRole.USER, "halo"),),
+        )
+
+    assert getattr(caught.value, "error_code", None) == "network_error"
+    assert DownClient.calls == ["same-key", "same-key", "same-key"]
+    assert delays == [0.25, 0.75]
