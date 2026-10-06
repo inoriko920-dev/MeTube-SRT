@@ -29,7 +29,6 @@ class AIProviderPort(Protocol):
     def check(self) -> None: ...
 
 
-
 @runtime_checkable
 class AIProviderCancellationPort(Protocol):
     def cancel_current(self) -> None: ...

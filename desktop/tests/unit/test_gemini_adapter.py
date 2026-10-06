@@ -257,7 +257,6 @@ def test_generate_reply_stops_after_transient_retry_budget(
     assert delays == [0.25, 0.75]
 
 
-
 def test_cancel_current_closes_active_client_and_stops_retry(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:

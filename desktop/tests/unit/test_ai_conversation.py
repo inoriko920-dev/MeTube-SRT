@@ -149,7 +149,6 @@ def test_named_bearer_redaction_does_not_leave_token_tail() -> None:
     assert credential_value not in result.text
 
 
-
 def test_conversation_delegates_provider_cancellation() -> None:
     class CancellableProvider(FakeProvider):
         def __init__(self) -> None:
