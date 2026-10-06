@@ -3,6 +3,7 @@ from __future__ import annotations
 import subprocess
 import sys
 from collections.abc import Callable, Iterable, Sequence
+from contextlib import suppress
 from threading import Lock, RLock, Thread
 from typing import Protocol, TextIO, cast
 
@@ -271,17 +272,12 @@ class SubprocessWorkerAdapter(DownloadWorkerPort):
             process.kill()
         except OSError:
             return
-        try:
+        with suppress(OSError, subprocess.TimeoutExpired):
             process.wait(timeout=self._terminate_grace_seconds)
-        except (OSError, subprocess.TimeoutExpired):
-            pass
 
     def _close_stdin(self, process: WorkerProcess) -> None:
         stdin = process.stdin
         if stdin is None:
             return
-        with self._write_lock:
-            try:
-                stdin.close()
-            except (OSError, ValueError):
-                pass
+        with self._write_lock, suppress(OSError, ValueError):
+            stdin.close()
