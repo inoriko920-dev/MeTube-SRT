@@ -3,6 +3,7 @@ from __future__ import annotations
 from enum import StrEnum
 
 from PySide6.QtCore import Qt
+from PySide6.QtGui import QCloseEvent
 from PySide6.QtWidgets import QHBoxLayout, QMainWindow, QSplitter, QStackedWidget, QWidget
 
 from metube_srt_desktop.application.ai_conversation import HumanlikeAIConversation
@@ -127,6 +128,11 @@ class MainWindow(QMainWindow):
             if page is current:
                 return page_id
         raise RuntimeError("current stacked page is not registered")
+
+    def closeEvent(self, event: QCloseEvent) -> None:
+        if self.download_controller is not None:
+            self.download_controller.shutdown()
+        super().closeEvent(event)
 
     def navigate(self, raw_page_id: str) -> None:
         page_id = PageId(raw_page_id)

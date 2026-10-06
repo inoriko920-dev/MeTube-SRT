@@ -17,6 +17,7 @@ from metube_srt_desktop.application.dto.job_runtime import JobRuntimeSnapshot
 from metube_srt_desktop.application.ports.download_queue import QueueRuntimePort
 from metube_srt_desktop.application.ports.queue_storage import QueueStorageError
 from metube_srt_desktop.application.ports.source_resolver import (
+    SourceResolveCancellationPort,
     SourceResolveError,
     SourceResolverPort,
 )
@@ -249,6 +250,11 @@ class DownloadQueueController(QObject):
         if spec is not None:
             return spec.display_title or spec.source_url
         return job_id
+
+    def shutdown(self) -> None:
+        self._poll_timer.stop()
+        if isinstance(self._resolver, SourceResolveCancellationPort):
+            self._resolver.cancel_current()
 
     def _set_busy(self, busy: bool) -> None:
         self._busy = busy

@@ -193,3 +193,45 @@ def test_invalid_success_payload_is_rejected() -> None:
         resolver.resolve(ResolveRequest("https://www.youtube.com/watch?v=abc"))
 
     assert caught.value.error_code == "invalid_resolve_payload"
+
+
+
+def test_source_resolver_cancel_routes_to_active_worker() -> None:
+    process = FakeProcess("", return_code=0)
+    process.return_code = None  # type: ignore[assignment]
+    resolver = SubprocessSourceResolver(
+        process_factory=CapturingFactory(process),
+        resolve_id_factory=lambda: "resolve-1",
+        worker_run_id_factory=lambda: "run-1",
+        terminate_grace_seconds=0,
+    )
+
+    from threading import Event, Thread
+    from time import sleep
+
+    started = Event()
+
+    original_factory = resolver._process_factory  # type: ignore[attr-defined]
+
+    def starting_factory(argv: Sequence[str]) -> FakeProcess:
+        result = original_factory(argv)  # type: ignore[misc]
+        started.set()
+        return result
+
+    resolver._process_factory = starting_factory  # type: ignore[attr-defined]
+
+    errors: list[BaseException] = []
+
+    def run() -> None:
+        try:
+            resolver.resolve(ResolveRequest("https://www.youtube.com/watch?v=abc"))
+        except BaseException as exc:
+            errors.append(exc)
+
+    thread = Thread(target=run)
+    thread.start()
+    assert started.wait(1.0)
+    resolver.cancel_current()
+    thread.join(2.0)
+
+    assert not thread.is_alive()

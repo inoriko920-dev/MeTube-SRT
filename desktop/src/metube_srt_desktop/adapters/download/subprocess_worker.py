@@ -127,6 +127,8 @@ class SubprocessWorkerAdapter(DownloadWorkerPort):
         self._cancel_grace_seconds = cancel_grace_seconds
         self._terminate_grace_seconds = terminate_grace_seconds
         self._terminal_exit_grace_seconds = terminal_exit_grace_seconds
+        self._resolve_lock = Lock()
+        self._current_worker: SubprocessWorkerAdapter | None = None
 
         self._process: WorkerProcess | None = None
         self._write_lock = RLock()
@@ -381,6 +383,12 @@ class SubprocessSourceResolver(SourceResolverPort):
         self._terminate_grace_seconds = terminate_grace_seconds
         self._terminal_exit_grace_seconds = terminal_exit_grace_seconds
 
+    def cancel_current(self) -> None:
+        with self._resolve_lock:
+            worker = self._current_worker
+        if worker is not None:
+            worker.request_cancel()
+
     def resolve(self, request: ResolveRequest) -> ResolvedSource:
         resolve_id = self._resolve_id_factory()
         worker_run_id = self._worker_run_id_factory()
@@ -401,6 +409,8 @@ class SubprocessSourceResolver(SourceResolverPort):
             terminate_grace_seconds=self._terminate_grace_seconds,
             terminal_exit_grace_seconds=self._terminal_exit_grace_seconds,
         )
+        with self._resolve_lock:
+            self._current_worker = worker
 
         try:
             events = tuple(worker.events())
@@ -409,6 +419,10 @@ class SubprocessSourceResolver(SourceResolverPort):
                 "worker_process_failed",
                 "Source resolve worker failed",
             ) from exc
+        finally:
+            with self._resolve_lock:
+                if self._current_worker is worker:
+                    self._current_worker = None
 
         if not events:
             raise SourceResolveError(

@@ -244,3 +244,26 @@ def test_resolve_rejects_non_youtube_url_before_worker(qtbot: QtBot) -> None:
         assert window.download_page.state_text.text() == "Masukkan URL YouTube yang valid."
     finally:
         queue.shutdown(wait=True)
+
+
+
+def test_window_close_requests_resolver_cancellation(qtbot: QtBot) -> None:
+    class CancellableResolver(FakeResolver):
+        def __init__(self) -> None:
+            super().__init__()
+            self.cancelled = False
+
+        def cancel_current(self) -> None:
+            self.cancelled = True
+
+    resolver = CancellableResolver()
+    queue = BoundedDownloadQueue(ImmediateWorkerFactory())
+    window = MainWindow(resolver=resolver, queue=queue)
+    qtbot.addWidget(window)
+    window.show()
+
+    try:
+        window.close()
+        assert resolver.cancelled is True
+    finally:
+        queue.shutdown(wait=True)

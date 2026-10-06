@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from typing import Protocol
+from typing import Protocol, runtime_checkable
 
 from metube_srt_desktop.application.dto.download import ResolvedSource, ResolveRequest
 
@@ -23,4 +23,14 @@ class SourceResolverPort(Protocol):
 
     def resolve(self, request: ResolveRequest) -> ResolvedSource:
         """Resolve one URL without downloading media."""
+        ...
+
+
+
+@runtime_checkable
+class SourceResolveCancellationPort(Protocol):
+    """Optional control boundary for cancelling an in-flight metadata resolve."""
+
+    def cancel_current(self) -> None:
+        """Request cancellation of the currently active resolve, if any."""
         ...
