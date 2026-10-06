@@ -83,10 +83,13 @@ class DownloadJobRun:
                     break
         except DownloadWorkerError as exc:
             terminal_seen = True
-            yield self._mark_interrupted(
-                "worker_process_failed",
-                _worker_error_message(exc, "Download worker process failed"),
-            )
+            if self.snapshot.state is JobState.CANCELLING:
+                yield self._mark_cancelled_after_worker_stop()
+            else:
+                yield self._mark_interrupted(
+                    "worker_process_failed",
+                    _worker_error_message(exc, "Download worker process failed"),
+                )
 
         if not terminal_seen:
             yield self._mark_interrupted(
@@ -125,6 +128,18 @@ class DownloadJobRun:
                 )
 
             self._snapshot = replace(current, **changes)
+            return self._snapshot
+
+    def _mark_cancelled_after_worker_stop(self) -> JobRuntimeSnapshot:
+        with self._lock:
+            current = self._snapshot
+            if is_terminal_job_state(current.state):
+                return current
+            self._snapshot = replace(
+                current,
+                state=transition_job_state(current.state, JobState.CANCELLED),
+                warning_message="Worker dihentikan paksa setelah permintaan pembatalan",
+            )
             return self._snapshot
 
     def _mark_interrupted(

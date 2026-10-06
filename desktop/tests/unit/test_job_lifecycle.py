@@ -224,3 +224,18 @@ def test_updates_are_single_consumer() -> None:
         assert "only be consumed once" in str(exc)
     else:
         raise AssertionError("second updates() consumption should fail")
+
+
+
+def test_worker_stop_after_successful_cancel_request_is_cancelled() -> None:
+    worker = FakeWorker(fail_events=True)
+    run = DownloadJobRun(make_job(), worker_run_id="run-1", worker=worker)
+
+    cancelling = run.cancel()
+    final = list(run.updates())[-1]
+
+    assert cancelling.state is JobState.CANCELLING
+    assert worker.cancel_requests == 1
+    assert final.state is JobState.CANCELLED
+    assert final.error_code is None
+    assert final.warning_message == "Worker dihentikan paksa setelah permintaan pembatalan"
