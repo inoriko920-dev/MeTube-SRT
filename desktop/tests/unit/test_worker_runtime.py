@@ -286,4 +286,5 @@ def test_download_progress_events_are_throttled_without_delaying_cancel(
     progress_events = [
         item for item in _events(output) if item.event_type is WorkerEventType.PROGRESS
     ]
-    assert len(progress_events) == 1
+    assert len(progress_events) == 2
+    assert progress_events[-1].payload["percent"] == 100.0

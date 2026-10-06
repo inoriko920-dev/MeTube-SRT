@@ -131,6 +131,17 @@ def _progress_hook(
                 payload["eta_seconds"] = eta
             emit(WorkerEventType.PROGRESS, payload)
         elif state == "finished":
+            payload: dict[str, object] = {
+                "phase": "download",
+                "percent": 100.0,
+            }
+            downloaded = _numeric(status.get("downloaded_bytes"))
+            total = _numeric(status.get("total_bytes"))
+            if downloaded is not None:
+                payload["downloaded_bytes"] = downloaded
+            if total is not None:
+                payload["total_bytes"] = total
+            emit(WorkerEventType.PROGRESS, payload)
             emit(WorkerEventType.PHASE, {"phase": "postprocessing"})
 
     return hook
