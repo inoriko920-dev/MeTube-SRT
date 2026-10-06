@@ -193,3 +193,40 @@ def test_invalid_success_payload_is_rejected() -> None:
         resolver.resolve(ResolveRequest("https://www.youtube.com/watch?v=abc"))
 
     assert caught.value.error_code == "invalid_resolve_payload"
+
+
+
+class RunningFakeProcess(FakeProcess):
+    def poll(self) -> int | None:
+        return None
+
+
+def test_cancel_before_worker_registration_is_applied_to_next_resolve() -> None:
+    process = RunningFakeProcess(
+        event_line(WorkerEventType.READY, sequence=0)
+        + event_line(
+            WorkerEventType.CANCELLED,
+            sequence=1,
+            payload={"reason": "requested"},
+        )
+    )
+    resolver = SubprocessSourceResolver(
+        process_factory=CapturingFactory(process),
+        resolve_id_factory=lambda: "resolve-1",
+        worker_run_id_factory=lambda: "run-1",
+    )
+
+    resolver.cancel_current()
+
+    with pytest.raises(SourceResolveError) as caught:
+        resolver.resolve(ResolveRequest("https://www.youtube.com/watch?v=abc"))
+
+    assert caught.value.error_code == "resolve_cancelled"
+    commands = [
+        WorkerCommandEnvelope.from_json_line(line)
+        for line in process.stdin_buffer.getvalue().splitlines()
+    ]
+    assert [command.command_type for command in commands] == [
+        WorkerCommandType.RESOLVE,
+        WorkerCommandType.CANCEL,
+    ]

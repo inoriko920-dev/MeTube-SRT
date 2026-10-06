@@ -390,12 +390,18 @@ class SubprocessSourceResolver(SourceResolverPort):
         self._terminal_exit_grace_seconds = terminal_exit_grace_seconds
         self._resolve_lock = Lock()
         self._current_worker: SubprocessWorkerAdapter | None = None
+        self._cancel_pending = False
 
     def cancel_current(self) -> None:
         with self._resolve_lock:
             worker = self._current_worker
-        if worker is not None:
+            if worker is None:
+                self._cancel_pending = True
+                return
+        try:
             worker.request_cancel()
+        except WorkerAdapterError:
+            return
 
     def resolve(self, request: ResolveRequest) -> ResolvedSource:
         resolve_id = self._resolve_id_factory()
@@ -419,6 +425,20 @@ class SubprocessSourceResolver(SourceResolverPort):
         )
         with self._resolve_lock:
             self._current_worker = worker
+            cancel_pending = self._cancel_pending
+            self._cancel_pending = False
+
+        if cancel_pending:
+            try:
+                worker.request_cancel()
+            except WorkerAdapterError as exc:
+                with self._resolve_lock:
+                    if self._current_worker is worker:
+                        self._current_worker = None
+                raise SourceResolveError(
+                    "worker_process_failed",
+                    "Source resolve worker failed",
+                ) from exc
 
         try:
             events = tuple(worker.events())
