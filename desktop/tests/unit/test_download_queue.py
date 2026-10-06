@@ -308,7 +308,6 @@ def test_shutdown_continues_when_one_active_cancel_fails() -> None:
     factory.workers[0].release.set()
 
 
-
 def _same_target_job(
     index: int,
     *,
