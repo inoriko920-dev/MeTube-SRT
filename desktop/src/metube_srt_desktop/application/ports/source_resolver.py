@@ -26,7 +26,6 @@ class SourceResolverPort(Protocol):
         ...
 
 
-
 @runtime_checkable
 class SourceResolveCancellationPort(Protocol):
     """Optional control boundary for cancelling an in-flight metadata resolve."""

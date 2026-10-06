@@ -266,3 +266,22 @@ def test_window_close_requests_resolver_cancellation(qtbot: QtBot) -> None:
         assert resolver.cancelled is True
     finally:
         queue.shutdown(wait=True)
+
+
+
+def test_relative_output_directory_is_normalized_before_enqueue(qtbot: QtBot) -> None:
+    resolver = FakeResolver()
+    queue = CapturingQueue()
+    window = MainWindow(resolver=resolver, queue=queue)
+    qtbot.addWidget(window)
+    window.show()
+
+    window.download_page.url_input.setText("https://www.youtube.com/watch?v=abc123")
+    window.download_page.output_path.setText("relative-output")
+    window.download_page.enqueue_button.click()
+
+    qtbot.waitUntil(lambda: bool(queue.jobs), timeout=2000)
+
+    output = Path(queue.jobs[0].output_directory)
+    assert output.is_absolute()
+    assert output.name == "relative-output"

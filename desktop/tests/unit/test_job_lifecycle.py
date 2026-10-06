@@ -240,7 +240,6 @@ def test_worker_stop_after_successful_cancel_request_is_cancelled() -> None:
     assert final.warning_message == "Worker dihentikan paksa setelah permintaan pembatalan"
 
 
-
 class TailFailWorker:
     def events(self) -> Iterable[WorkerEnvelope]:
         yield event(WorkerEventType.READY, 0)

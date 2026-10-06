@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from collections.abc import Callable
 from dataclasses import dataclass
+from pathlib import Path
 from typing import cast
 
 from PySide6.QtCore import QObject, QRunnable, QThreadPool, QTimer, Signal, Slot
@@ -237,8 +238,12 @@ class DownloadQueueController(QObject):
         quality = _QUALITY_BY_INDEX.get(self._download_page.quality_combo.currentIndex())
         if quality is None:
             raise ValueError("invalid quality selection")
+        raw_output = self._download_page.output_path.text().strip()
+        if not raw_output:
+            raise ValueError("output_directory must be non-empty")
+        output_directory = str(Path(raw_output).expanduser().resolve(strict=False))
         return DownloadSelection(
-            output_directory=self._download_page.output_path.text().strip(),
+            output_directory=output_directory,
             quality=quality,
             subtitle_requested=self._download_page.subtitle_checkbox.isChecked(),
         )
