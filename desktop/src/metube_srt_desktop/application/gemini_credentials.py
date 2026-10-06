@@ -141,10 +141,9 @@ class GeminiCredentialRegistry:
 
         active_cooldown = _cooldown_retry_after_seconds(profile.cooldown_until)
         requested_active = status.strip().casefold() == "aktif"
-        if requested_active and active_cooldown is not None:
-            # A late success must not erase a newer 429 cooldown.
+        if requested_active and active_cooldown is not None and not clear_cooldown:
+            # A late targeted success must not erase a newer 429 cooldown.
             status = profile.status
-            clear_cooldown = False
 
         updated = replace(
             profile,
