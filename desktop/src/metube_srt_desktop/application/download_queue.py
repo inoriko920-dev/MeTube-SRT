@@ -252,10 +252,14 @@ class BoundedDownloadQueue:
                         if (entry := self._entries[job_id]).run is not None
                     )
 
-        for run in active_runs:
-            run.cancel()
-
-        self._executor.shutdown(wait=wait, cancel_futures=False)
+        try:
+            for run in active_runs:
+                try:
+                    run.cancel()
+                except DownloadWorkerError:
+                    continue
+        finally:
+            self._executor.shutdown(wait=wait, cancel_futures=False)
 
     def _dispatch_available_locked(self) -> None:
         if self._closed or self._persistence_failed:

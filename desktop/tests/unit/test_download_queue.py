@@ -256,3 +256,54 @@ def test_concurrency_is_bounded_to_supported_range() -> None:
         BoundedDownloadQueue(factory, concurrency=0)
     with pytest.raises(ValueError, match="between 1 and 4"):
         BoundedDownloadQueue(factory, concurrency=5)
+
+
+
+def test_shutdown_continues_when_one_active_cancel_fails() -> None:
+    class CancelFailWorker:
+        def __init__(self, fail: bool) -> None:
+            self.fail = fail
+            self.cancel_calls = 0
+            self.release = Event()
+
+        def events(self) -> Iterable[WorkerEnvelope]:
+            self.release.wait(timeout=2)
+            return ()
+
+        def request_cancel(self) -> None:
+            self.cancel_calls += 1
+            if self.fail:
+                raise DownloadWorkerError("cancel failed")
+            self.release.set()
+
+    class CancelFailFactory:
+        def __init__(self) -> None:
+            self.workers: list[CancelFailWorker] = []
+
+        def create(
+            self,
+            job: JobSpec,
+            *,
+            worker_run_id: str,
+        ) -> DownloadWorkerPort:
+            worker = CancelFailWorker(fail=len(self.workers) == 0)
+            self.workers.append(worker)
+            return worker
+
+    factory = CancelFailFactory()
+    queue = BoundedDownloadQueue(factory, concurrency=2)
+    jobs = (
+        _job("shutdown-fail-1"),
+        _job("shutdown-fail-2"),
+    )
+    queue.enqueue_many(jobs)
+
+    deadline = time.monotonic() + 1.0
+    while queue.active_count < 2 and time.monotonic() < deadline:
+        time.sleep(0.01)
+
+    queue.shutdown(wait=False, cancel_active=True)
+
+    assert len(factory.workers) == 2
+    assert factory.workers[0].cancel_calls == 1
+    assert factory.workers[1].cancel_calls == 1
