@@ -193,6 +193,5 @@ class GeminiCredentialsController(QObject):
         self.refresh()
         QMessageBox.warning(self._page, "API Gemini", message)
 
-
     def shutdown(self) -> None:
         self._closed = True

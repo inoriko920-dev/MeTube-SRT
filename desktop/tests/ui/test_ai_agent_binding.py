@@ -78,7 +78,6 @@ def test_ai_panel_sends_message_and_renders_human_reply(qtbot: QtBot) -> None:
         queue.shutdown(wait=True)
 
 
-
 def test_ai_controller_ignores_new_messages_after_window_close(qtbot: QtBot) -> None:
     class CountingProvider(HumanProvider):
         def __init__(self) -> None:

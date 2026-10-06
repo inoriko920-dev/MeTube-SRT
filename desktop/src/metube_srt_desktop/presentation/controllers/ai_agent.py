@@ -134,6 +134,5 @@ class AIAgentController(QObject):
             queue_failed=sum(item.state in failed_states for item in snapshots),
         )
 
-
     def shutdown(self) -> None:
         self._closed = True
