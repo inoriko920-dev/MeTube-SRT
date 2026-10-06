@@ -169,6 +169,21 @@ class SQLiteQueueStorage(QueueStoragePort):
         try:
             with self._connect() as connection:
                 connection.executescript(_SCHEMA)
+                schema_row = connection.execute(
+                    "SELECT value FROM app_meta WHERE key = 'queue_schema_version'"
+                ).fetchone()
+                if schema_row is not None:
+                    try:
+                        existing_version = int(str(schema_row["value"]))
+                    except (TypeError, ValueError) as exc:
+                        raise QueueStorageError(
+                            "durable queue schema version is invalid"
+                        ) from exc
+                    if existing_version > _SCHEMA_VERSION:
+                        raise QueueStorageError(
+                            "durable queue schema is newer than this application"
+                        )
+
                 columns = {
                     str(row["name"])
                     for row in connection.execute("PRAGMA table_info(queue_jobs)").fetchall()

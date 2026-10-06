@@ -1,7 +1,10 @@
 import sqlite3
 from pathlib import Path
 
+import pytest
+
 from metube_srt_desktop.adapters.storage import SQLiteQueueStorage
+from metube_srt_desktop.application.ports.queue_storage import QueueStorageError
 from metube_srt_desktop.application.dto.job_runtime import JobRuntimeSnapshot
 from metube_srt_desktop.application.dto.queue_storage import PersistedQueueEntry
 from metube_srt_desktop.domain.jobs import JobSpec, JobState, QualityPreset
@@ -138,3 +141,33 @@ def test_sqlite_queue_migrates_v1_database_with_display_title_column(tmp_path: P
 
     assert "display_title" in columns
     assert version == ("2",)
+
+
+
+def test_sqlite_queue_refuses_newer_schema_without_downgrading_version(
+    tmp_path: Path,
+) -> None:
+    database = tmp_path / "app.db"
+    SQLiteQueueStorage(database)
+
+    connection = sqlite3.connect(database)
+    try:
+        connection.execute(
+            "UPDATE app_meta SET value = '999' WHERE key = 'queue_schema_version'"
+        )
+        connection.commit()
+    finally:
+        connection.close()
+
+    with pytest.raises(QueueStorageError, match="newer than this application"):
+        SQLiteQueueStorage(database)
+
+    connection = sqlite3.connect(database)
+    try:
+        version = connection.execute(
+            "SELECT value FROM app_meta WHERE key = 'queue_schema_version'"
+        ).fetchone()
+    finally:
+        connection.close()
+
+    assert version == ("999",)
