@@ -42,11 +42,19 @@ class GeminiAdapter(AIProviderPort):
         model: str | None = None,
         invalid_key_handler: Callable[[], None] | None = None,
         rate_limit_handler: Callable[[], None] | None = None,
+        credential_source: Callable[[], tuple[str, str] | None] | None = None,
+        profile_secret_source: Callable[[str], str | None] | None = None,
+        identified_invalid_key_handler: Callable[[str], None] | None = None,
+        identified_rate_limit_handler: Callable[[str], None] | None = None,
         sleep_fn: Callable[[float], None] = sleep,
     ) -> None:
         self._api_key_source = api_key_source
+        self._credential_source = credential_source
+        self._profile_secret_source = profile_secret_source
         self._invalid_key_handler = invalid_key_handler
         self._rate_limit_handler = rate_limit_handler
+        self._identified_invalid_key_handler = identified_invalid_key_handler
+        self._identified_rate_limit_handler = identified_rate_limit_handler
         self._sleep = sleep_fn
         self._client_lock = RLock()
         self._active_clients: dict[int, genai.Client] = {}
@@ -66,7 +74,7 @@ class GeminiAdapter(AIProviderPort):
         messages: tuple[AIChatMessage, ...],
     ) -> str:
         contents = [_to_content(message) for message in messages]
-        api_key = self._require_api_key()
+        profile_id, api_key = self._require_credential()
         operation_epoch = self._operation_epoch()
 
         for _ in range(100):
@@ -79,14 +87,14 @@ class GeminiAdapter(AIProviderPort):
                 )
             except AIProviderError as exc:
                 if exc.error_code == "rate_limited":
-                    self._mark_rate_limited()
+                    self._mark_rate_limited(profile_id)
                     raise
                 if exc.error_code != "invalid_api_key":
                     raise
-                next_key = self._next_key_after_invalid(api_key)
-                if next_key is None:
+                next_credential = self._next_credential_after_invalid(profile_id, api_key)
+                if next_credential is None:
                     raise
-                api_key = next_key
+                profile_id, api_key = next_credential
 
         raise AIProviderError("invalid_api_key", "Semua API key Gemini aktif ditolak.")
 
@@ -162,39 +170,59 @@ class GeminiAdapter(AIProviderPort):
             raise AIProviderError("empty_response", "Gemini tidak mengembalikan jawaban.")
         return text.strip()
 
-    def _next_key_after_invalid(self, previous_key: str) -> str | None:
-        if self._invalid_key_handler is None:
-            return None
+    def _next_credential_after_invalid(
+        self,
+        profile_id: str | None,
+        previous_key: str,
+    ) -> tuple[str | None, str] | None:
         try:
-            self._invalid_key_handler()
+            if profile_id is not None and self._identified_invalid_key_handler is not None:
+                self._identified_invalid_key_handler(profile_id)
+            elif self._invalid_key_handler is not None:
+                self._invalid_key_handler()
+            else:
+                return None
         except CredentialStorageError as exc:
             raise AIProviderError(
                 "credential_storage_error",
                 "Status API key tidak dapat diperbarui.",
             ) from exc
 
-        try:
-            candidate = self._api_key_source()
-        except CredentialStorageError as exc:
-            raise AIProviderError(
-                "credential_storage_error",
-                "Penyimpanan aman API key tidak dapat diakses.",
-            ) from exc
-        if candidate is None:
+        candidate_profile_id, candidate_key = self._require_credential(allow_missing=True)
+        if not candidate_key or candidate_key == previous_key:
             return None
-        clean = candidate.strip()
-        if not clean or clean == previous_key:
-            return None
-        return clean
+        return candidate_profile_id, candidate_key
 
     def check(self) -> None:
-        api_key = self._require_api_key()
+        profile_id, api_key = self._require_credential()
         operation_epoch = self._operation_epoch()
         try:
             self._check_with_retries(api_key, operation_epoch=operation_epoch)
         except AIProviderError as exc:
             if exc.error_code == "rate_limited":
-                self._mark_rate_limited()
+                self._mark_rate_limited(profile_id)
+            raise
+
+    def check_profile(self, profile_id: str) -> None:
+        if self._profile_secret_source is None:
+            self.check()
+            return
+        try:
+            api_key = self._profile_secret_source(profile_id)
+        except CredentialStorageError as exc:
+            raise AIProviderError(
+                "credential_storage_error",
+                "Penyimpanan aman API key tidak dapat diakses.",
+            ) from exc
+        if api_key is None or not api_key.strip():
+            raise AIProviderError("missing_api_key", "API key Gemini tidak tersedia.")
+
+        operation_epoch = self._operation_epoch()
+        try:
+            self._check_with_retries(api_key.strip(), operation_epoch=operation_epoch)
+        except AIProviderError as exc:
+            if exc.error_code == "rate_limited":
+                self._mark_rate_limited(profile_id)
             raise
 
     def _check_with_retries(self, api_key: str, *, operation_epoch: int) -> None:
@@ -269,20 +297,37 @@ class GeminiAdapter(AIProviderPort):
         with self._client_lock:
             self._active_clients.pop(id(client), None)
 
-    def _mark_rate_limited(self) -> None:
-        if self._rate_limit_handler is None:
-            return
+    def _mark_rate_limited(self, profile_id: str | None) -> None:
         try:
-            self._rate_limit_handler()
+            if profile_id is not None and self._identified_rate_limit_handler is not None:
+                self._identified_rate_limit_handler(profile_id)
+            elif self._rate_limit_handler is not None:
+                self._rate_limit_handler()
         except CredentialStorageError as exc:
             raise AIProviderError(
                 "credential_storage_error",
                 "Cooldown API key tidak dapat disimpan.",
             ) from exc
 
-    def _require_api_key(self) -> str:
+    def _require_credential(
+        self,
+        *,
+        allow_missing: bool = False,
+    ) -> tuple[str | None, str]:
         try:
-            api_key = self._api_key_source()
+            if self._credential_source is not None:
+                credential = self._credential_source()
+                if credential is None:
+                    if allow_missing:
+                        return None, ""
+                    raise AIProviderError(
+                        "missing_api_key",
+                        "Belum ada API key Gemini aktif.",
+                    )
+                profile_id, api_key = credential
+            else:
+                profile_id = None
+                api_key = self._api_key_source()
         except CredentialCooldownError as exc:
             raise AIProviderError(
                 "rate_limited",
@@ -293,12 +338,15 @@ class GeminiAdapter(AIProviderPort):
                 "credential_storage_error",
                 "Penyimpanan aman API key tidak dapat diakses.",
             ) from exc
+
         if api_key is None or not api_key.strip():
+            if allow_missing:
+                return profile_id, ""
             raise AIProviderError(
                 "missing_api_key",
                 "Belum ada API key Gemini aktif.",
             )
-        return api_key.strip()
+        return profile_id, api_key.strip()
 
 
 def _to_content(message: AIChatMessage) -> types.Content:

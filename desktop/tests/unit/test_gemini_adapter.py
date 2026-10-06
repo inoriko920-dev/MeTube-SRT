@@ -309,3 +309,57 @@ def test_cancel_current_closes_active_client_and_stops_retry(
     assert getattr(errors_seen[0], "error_code", None) == "cancelled"
     assert BlockingClient.calls == ["same-key"]
     assert delays == []
+
+
+
+def test_identified_invalid_callback_is_bound_to_request_profile(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setattr(gemini_module.errors, "APIError", FakeAPIError)
+    monkeypatch.setattr(gemini_module.genai, "Client", FakeClient)
+    FakeClient.calls.clear()
+
+    credentials = [("profile-a", "bad-key"), ("profile-b", "good-key")]
+    invalidated: list[str] = []
+
+    def credential_source() -> tuple[str, str] | None:
+        return credentials[0] if credentials else None
+
+    def mark_invalid(profile_id: str) -> None:
+        invalidated.append(profile_id)
+        credentials.pop(0)
+
+    adapter = GeminiAdapter(
+        lambda: None,
+        credential_source=credential_source,
+        identified_invalid_key_handler=mark_invalid,
+    )
+
+    reply = adapter.generate_reply(
+        system_instruction="Balas singkat.",
+        messages=(AIChatMessage(AIChatRole.USER, "halo"),),
+    )
+
+    assert reply == "Siap, key kedua berhasil."
+    assert invalidated == ["profile-a"]
+    assert credentials == [("profile-b", "good-key")]
+
+
+def test_profile_check_uses_exact_profile_secret_not_current_active(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setattr(gemini_module.genai, "Client", FakeClient)
+    FakeClient.calls.clear()
+    secrets = {
+        "profile-a": "exact-a",
+        "profile-b": "exact-b",
+    }
+    adapter = GeminiAdapter(
+        lambda: "exact-b",
+        credential_source=lambda: ("profile-b", "exact-b"),
+        profile_secret_source=secrets.get,
+    )
+
+    adapter.check_profile("profile-a")
+
+    assert FakeClient.calls == ["exact-a"]

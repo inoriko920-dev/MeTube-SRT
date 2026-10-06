@@ -30,5 +30,10 @@ class AIProviderPort(Protocol):
 
 
 @runtime_checkable
+class AIProviderProfileCheckPort(Protocol):
+    def check_profile(self, profile_id: str) -> None: ...
+
+
+@runtime_checkable
 class AIProviderCancellationPort(Protocol):
     def cancel_current(self) -> None: ...

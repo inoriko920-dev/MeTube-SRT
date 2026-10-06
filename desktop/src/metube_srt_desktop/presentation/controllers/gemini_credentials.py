@@ -5,6 +5,7 @@ from contextlib import suppress
 from dataclasses import dataclass
 from pathlib import Path
 from typing import cast
+from uuid import uuid4
 
 from PySide6.QtCore import QObject, QRunnable, QThreadPool, Signal, Slot
 from PySide6.QtWidgets import QFileDialog, QInputDialog, QLineEdit, QMessageBox
@@ -14,6 +15,7 @@ from metube_srt_desktop.application.ports.ai_provider import (
     AIProviderCancellationPort,
     AIProviderError,
     AIProviderPort,
+    AIProviderProfileCheckPort,
 )
 from metube_srt_desktop.application.ports.credentials import CredentialStorageError
 from metube_srt_desktop.presentation.pages.api_keys.page import ApiKeysPage
@@ -21,6 +23,8 @@ from metube_srt_desktop.presentation.pages.api_keys.page import ApiKeysPage
 
 @dataclass(frozen=True, slots=True)
 class _CheckResult:
+    profile_id: str
+    request_id: str
     error: Exception | None
 
 
@@ -29,18 +33,26 @@ class _CheckSignals(QObject):
 
 
 class _CheckTask(QRunnable):
-    def __init__(self, call: Callable[[], None]) -> None:
+    def __init__(
+        self,
+        call: Callable[[], None],
+        *,
+        profile_id: str,
+        request_id: str,
+    ) -> None:
         super().__init__()
         self._call = call
+        self._profile_id = profile_id
+        self._request_id = request_id
         self.signals = _CheckSignals()
 
     @Slot()
     def run(self) -> None:
         try:
             self._call()
-            result = _CheckResult(None)
+            result = _CheckResult(self._profile_id, self._request_id, None)
         except Exception as exc:
-            result = _CheckResult(exc)
+            result = _CheckResult(self._profile_id, self._request_id, exc)
         self.signals.finished.emit(self, result)
 
 
@@ -149,7 +161,16 @@ class GeminiCredentialsController(QObject):
             return
 
         self._page.test_button.setDisabled(True)
-        task = _CheckTask(self._provider.check)
+        request_id = uuid4().hex
+        if isinstance(self._provider, AIProviderProfileCheckPort):
+            check_call = lambda: self._provider.check_profile(active_profile.profile_id)
+        else:
+            check_call = self._provider.check
+        task = _CheckTask(
+            check_call,
+            profile_id=active_profile.profile_id,
+            request_id=request_id,
+        )
 
         task.signals.finished.connect(self._task_finished)
         self._tasks.add(task)
@@ -167,7 +188,7 @@ class GeminiCredentialsController(QObject):
         self._page.test_button.setDisabled(False)
         if result.error is None:
             try:
-                self._registry.mark_active_status("Aktif")
+                self._registry.mark_status(result.profile_id, "Aktif")
             except CredentialStorageError:
                 self.refresh()
                 QMessageBox.warning(
@@ -196,7 +217,7 @@ class GeminiCredentialsController(QObject):
                 status = "Izin ditolak"
                 message = "Key aktif, tetapi project atau model Gemini tidak mengizinkan akses ini."
         with suppress(CredentialStorageError):
-            self._registry.mark_active_status(status)
+            self._registry.mark_status(result.profile_id, status)
         self.refresh()
         QMessageBox.warning(self._page, "API Gemini", message)
 

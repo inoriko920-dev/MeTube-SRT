@@ -324,3 +324,50 @@ def test_mark_active_status_preserves_cooldown_until_success() -> None:
 
     registry.mark_active_status("Aktif")
     assert profiles.items[profile.profile_id].cooldown_until is None
+
+
+
+def test_targeted_status_update_never_marks_new_active_profile() -> None:
+    profiles = MemoryProfiles()
+    secrets = MemorySecrets()
+    registry = GeminiCredentialRegistry(profiles, secrets)
+    first = registry.add_profile("Pertama", "fake-key-first-targeted-xxxxxxxxxxxxxxxx")
+    second = registry.add_profile("Kedua", "fake-key-second-targeted-xxxxxxxxxxxxxxx")
+
+    request_profile_id = first.profile_id
+    registry.mark_status(first.profile_id, "Tidak valid")
+    assert registry.active_profile() == profiles.items[second.profile_id]
+
+    registry.mark_status(request_profile_id, "Tidak valid")
+
+    assert profiles.items[first.profile_id].status == "Tidak valid"
+    assert profiles.items[second.profile_id].status == "Belum diuji"
+
+
+def test_late_success_does_not_clear_newer_rate_limit_cooldown() -> None:
+    profiles = MemoryProfiles()
+    secrets = MemorySecrets()
+    registry = GeminiCredentialRegistry(profiles, secrets)
+    profile = registry.add_profile("Utama", "fake-key-late-success-xxxxxxxxxxxxxxxxxxx")
+
+    registry.mark_cooldown(profile.profile_id, seconds=60)
+    cooldown = profiles.items[profile.profile_id].cooldown_until
+    registry.mark_status(profile.profile_id, "Aktif")
+
+    assert profiles.items[profile.profile_id].status == "Rate Limit"
+    assert profiles.items[profile.profile_id].cooldown_until == cooldown
+
+
+def test_secret_for_profile_uses_exact_profile_even_after_active_changes() -> None:
+    profiles = MemoryProfiles()
+    secrets = MemorySecrets()
+    registry = GeminiCredentialRegistry(profiles, secrets)
+    first_key = "fake-key-first-exact-xxxxxxxxxxxxxxxxxxxx"
+    second_key = "fake-key-second-exact-xxxxxxxxxxxxxxxxxxx"
+    first = registry.add_profile("Pertama", first_key)
+    registry.add_profile("Kedua", second_key)
+
+    registry.mark_status(first.profile_id, "Tidak valid")
+
+    assert registry.active_secret() == second_key
+    assert registry.secret_for_profile(first.profile_id) == first_key

@@ -105,6 +105,10 @@ class GeminiCredentialRegistry:
         return None if active is None else active[0]
 
     def active_secret(self) -> str | None:
+        credential = self.active_credential()
+        return None if credential is None else credential[1]
+
+    def active_credential(self) -> tuple[str, str] | None:
         active = self._active_profile_and_secret()
         if active is None:
             return None
@@ -112,13 +116,36 @@ class GeminiCredentialRegistry:
         retry_after = _cooldown_retry_after_seconds(profile.cooldown_until)
         if retry_after is not None:
             raise CredentialCooldownError(retry_after)
-        return secret
+        return profile.profile_id, secret
 
-    def mark_active_status(self, status: str) -> None:
-        profile = self.active_profile()
+    def secret_for_profile(self, profile_id: str) -> str | None:
+        if not profile_id.strip():
+            raise ValueError("profile_id must be non-empty")
+        if not any(profile.profile_id == profile_id for profile in self._profiles.list_profiles()):
+            return None
+        secret = self._secrets.get_secret(profile_id)
+        if secret is None or not secret.strip():
+            return None
+        return secret.strip()
+
+    def mark_status(
+        self,
+        profile_id: str,
+        status: str,
+        *,
+        clear_cooldown: bool = False,
+    ) -> None:
+        profile = self._profile_by_id(profile_id)
         if profile is None:
             return
-        clear_cooldown = status.strip().casefold() == "aktif"
+
+        active_cooldown = _cooldown_retry_after_seconds(profile.cooldown_until)
+        requested_active = status.strip().casefold() == "aktif"
+        if requested_active and active_cooldown is not None:
+            # A late success must not erase a newer 429 cooldown.
+            status = profile.status
+            clear_cooldown = False
+
         updated = replace(
             profile,
             status=status,
@@ -128,10 +155,10 @@ class GeminiCredentialRegistry:
         )
         self._profiles.save_profile(updated)
 
-    def mark_active_cooldown(self, *, seconds: int = 60) -> None:
+    def mark_cooldown(self, profile_id: str, *, seconds: int = 60) -> None:
         if seconds < 1:
             raise ValueError("cooldown seconds must be >= 1")
-        profile = self.active_profile()
+        profile = self._profile_by_id(profile_id)
         if profile is None:
             return
         now = datetime.now(UTC)
@@ -143,6 +170,28 @@ class GeminiCredentialRegistry:
             secret_available=None,
         )
         self._profiles.save_profile(updated)
+
+    def mark_active_status(self, status: str) -> None:
+        profile = self.active_profile()
+        if profile is None:
+            return
+        self.mark_status(
+            profile.profile_id,
+            status,
+            clear_cooldown=status.strip().casefold() == "aktif",
+        )
+
+    def mark_active_cooldown(self, *, seconds: int = 60) -> None:
+        profile = self.active_profile()
+        if profile is None:
+            return
+        self.mark_cooldown(profile.profile_id, seconds=seconds)
+
+    def _profile_by_id(self, profile_id: str) -> GeminiKeyProfile | None:
+        for profile in self._profiles.list_profiles():
+            if profile.profile_id == profile_id:
+                return profile
+        return None
 
     def _secret_already_exists(
         self,

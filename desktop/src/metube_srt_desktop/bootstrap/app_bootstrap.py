@@ -43,8 +43,12 @@ def build_runtime_window(
     credential_registry = GeminiCredentialRegistry(profile_repository, secret_store)
     ai_provider = GeminiAdapter(
         credential_registry.active_secret,
-        invalid_key_handler=lambda: credential_registry.mark_active_status("Tidak valid"),
-        rate_limit_handler=credential_registry.mark_active_cooldown,
+        credential_source=credential_registry.active_credential,
+        profile_secret_source=credential_registry.secret_for_profile,
+        identified_invalid_key_handler=lambda profile_id: credential_registry.mark_status(
+            profile_id, "Tidak valid"
+        ),
+        identified_rate_limit_handler=credential_registry.mark_cooldown,
     )
     ai_conversation = HumanlikeAIConversation(ai_provider)
 
