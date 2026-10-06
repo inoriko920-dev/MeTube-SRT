@@ -18,14 +18,8 @@ def test_expected_download_state_path_is_valid() -> None:
 
 
 def test_cancelling_can_finish_as_cancelled_or_race_to_success() -> None:
-    assert (
-        transition_job_state(JobState.CANCELLING, JobState.CANCELLED)
-        is JobState.CANCELLED
-    )
-    assert (
-        transition_job_state(JobState.CANCELLING, JobState.SUCCEEDED)
-        is JobState.SUCCEEDED
-    )
+    assert transition_job_state(JobState.CANCELLING, JobState.CANCELLED) is JobState.CANCELLED
+    assert transition_job_state(JobState.CANCELLING, JobState.SUCCEEDED) is JobState.SUCCEEDED
 
 
 def test_terminal_state_cannot_transition_back_to_running() -> None:

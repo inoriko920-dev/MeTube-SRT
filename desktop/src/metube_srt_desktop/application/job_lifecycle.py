@@ -87,10 +87,7 @@ class DownloadJobRun:
 
     def _is_current_event(self, event: WorkerEnvelope) -> bool:
         snapshot = self.snapshot
-        return (
-            event.job_id == snapshot.job_id
-            and event.worker_run_id == snapshot.worker_run_id
-        )
+        return event.job_id == snapshot.job_id and event.worker_run_id == snapshot.worker_run_id
 
     def _apply_event(self, event: WorkerEnvelope) -> JobRuntimeSnapshot:
         with self._lock:
@@ -147,16 +144,26 @@ def _state_for_event(current: JobState, event: WorkerEnvelope) -> JobState:
         return current
 
     if event.event_type is WorkerEventType.READY:
-        return transition_job_state(current, JobState.RUNNING)
+        if current in {JobState.QUEUED, JobState.RESOLVING, JobState.RUNNING}:
+            return transition_job_state(current, JobState.RUNNING)
+        return current
     if event.event_type is WorkerEventType.PHASE:
         phase = _optional_text(event.payload, "phase")
-        if phase == "postprocessing":
+        if phase == "postprocessing" and current in {JobState.RUNNING, JobState.POSTPROCESSING}:
             return transition_job_state(current, JobState.POSTPROCESSING)
-        if phase == "downloading":
+        if phase == "downloading" and current in {
+            JobState.QUEUED,
+            JobState.RESOLVING,
+            JobState.RUNNING,
+        }:
             return transition_job_state(current, JobState.RUNNING)
     if event.event_type is WorkerEventType.PROGRESS:
         phase = _optional_text(event.payload, "phase")
-        if phase == "download":
+        if phase == "download" and current in {
+            JobState.QUEUED,
+            JobState.RESOLVING,
+            JobState.RUNNING,
+        }:
             return transition_job_state(current, JobState.RUNNING)
 
     return current
