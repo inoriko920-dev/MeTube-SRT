@@ -29,7 +29,7 @@ def build_resolve_options() -> dict[str, object]:
 
 
 def build_download_options(job: JobSpec) -> dict[str, object]:
-    """Translate an immutable JobSpec into explicit yt-dlp Python API options."""
+    """Translate an immutable JobSpec into media-only yt-dlp options."""
 
     options: dict[str, object] = {
         **_javascript_runtime_options(),
@@ -51,19 +51,39 @@ def build_download_options(job: JobSpec) -> dict[str, object]:
     if resolution_sort is not None:
         options["format_sort"] = [resolution_sort]
 
+    return options
+
+
+def build_subtitle_only_options(job: JobSpec) -> dict[str, object]:
+    """Build supplemental subtitle-only options for a selected original track."""
+
     subtitle = job.selected_subtitle
     if subtitle is None:
-        return options
+        raise ValueError("subtitle-only options require selected_subtitle")
 
-    options["subtitleslangs"] = [subtitle.language_code]
-    options["subtitlesformat"] = "srt/best"
-    options["postprocessors"] = [
-        {
-            "key": "FFmpegSubtitlesConvertor",
-            "format": "srt",
-            "when": "before_dl",
-        }
-    ]
+    options: dict[str, object] = {
+        **_javascript_runtime_options(),
+        "paths": {"home": job.output_directory},
+        "outtmpl": {"default": "%(title)s [%(id)s].%(ext)s"},
+        "windowsfilenames": True,
+        "noplaylist": True,
+        "ignoreerrors": False,
+        "skip_download": True,
+        "quiet": True,
+        "no_warnings": True,
+        "noprogress": True,
+        "writesubtitles": False,
+        "writeautomaticsub": False,
+        "subtitleslangs": [subtitle.language_code],
+        "subtitlesformat": "srt/best",
+        "postprocessors": [
+            {
+                "key": "FFmpegSubtitlesConvertor",
+                "format": "srt",
+                "when": "before_dl",
+            }
+        ],
+    }
 
     if subtitle.kind is SubtitleKind.MANUAL:
         options["writesubtitles"] = True

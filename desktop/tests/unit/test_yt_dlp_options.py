@@ -3,9 +3,11 @@ from __future__ import annotations
 import pytest
 
 from metube_srt_desktop.domain.jobs import JobSpec, QualityPreset
+from metube_srt_desktop.domain.subtitles import SubtitleKind, SubtitleTrack
 from metube_srt_desktop.worker.yt_dlp_options import (
     build_download_options,
     build_resolve_options,
+    build_subtitle_only_options,
 )
 
 
@@ -39,3 +41,30 @@ def test_options_keep_deno_enabled_without_explicit_path(
     monkeypatch.delenv("METUBE_SRT_DENO_PATH", raising=False)
 
     assert build_resolve_options()["js_runtimes"] == {"deno": {}}
+
+
+
+def test_subtitle_only_options_do_not_redownload_media() -> None:
+    job = JobSpec(
+        job_id="job-sub",
+        source_url="https://www.youtube.com/watch?v=abc",
+        output_directory=r"C:\Downloads",
+        quality=QualityPreset.P720,
+        selected_subtitle=SubtitleTrack(
+            language_code="id",
+            kind=SubtitleKind.MANUAL,
+            is_original=True,
+        ),
+    )
+
+    media = build_download_options(job)
+    subtitle = build_subtitle_only_options(job)
+
+    assert media["writesubtitles"] is False
+    assert media["writeautomaticsub"] is False
+    assert "subtitleslangs" not in media
+
+    assert subtitle["skip_download"] is True
+    assert subtitle["writesubtitles"] is True
+    assert subtitle["writeautomaticsub"] is False
+    assert subtitle["subtitleslangs"] == ["id"]

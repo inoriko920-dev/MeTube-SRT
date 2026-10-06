@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from collections.abc import Callable, Mapping, Sequence
+from dataclasses import replace
 from pathlib import Path
 from threading import Event
 from time import monotonic
@@ -10,7 +11,11 @@ from typing import Protocol, cast
 from metube_srt_desktop.application.dto.download import ResolvedSource, ResolveRequest
 from metube_srt_desktop.application.dto.worker_protocol import WorkerEventType
 from metube_srt_desktop.domain.jobs import JobSpec
-from metube_srt_desktop.worker.yt_dlp_options import build_download_options, build_resolve_options
+from metube_srt_desktop.worker.yt_dlp_options import (
+    build_download_options,
+    build_resolve_options,
+    build_subtitle_only_options,
+)
 from metube_srt_desktop.worker.yt_dlp_resolver import map_resolved_source
 
 WorkerEmit = Callable[[WorkerEventType, Mapping[str, object]], None]
@@ -73,7 +78,8 @@ def download_job_live(
     if cancellation.is_set():
         raise DownloadCancellationRequested
 
-    options = build_download_options(job)
+    media_job = replace(job, selected_subtitle=None)
+    options = build_download_options(media_job)
     options["progress_hooks"] = [_progress_hook(cancellation, emit)]
     options["postprocessor_hooks"] = [_postprocessor_hook(cancellation, emit)]
 
@@ -86,10 +92,25 @@ def download_job_live(
     if not isinstance(raw_info, Mapping):
         raise ValueError("yt-dlp download result must be an object")
 
-    return _collect_output_paths(
-        cast(Mapping[str, object], raw_info),
-        output_directory=job.output_directory,
+    outputs = list(
+        _collect_output_paths(
+            cast(Mapping[str, object], raw_info),
+            output_directory=job.output_directory,
+        )
     )
+
+    if job.selected_subtitle is not None:
+        subtitle_outputs = _download_selected_subtitle(
+            job,
+            cancellation=cancellation,
+            emit=emit,
+            factory=factory,
+        )
+        for output_path in subtitle_outputs:
+            if output_path not in outputs:
+                outputs.append(output_path)
+
+    return tuple(outputs)
 
 
 def _progress_hook(
@@ -227,3 +248,43 @@ def _safe_output_path(output_directory: str, candidate: str) -> str | None:
     except ValueError:
         return None
     return str(resolved)
+
+
+
+def _download_selected_subtitle(
+    job: JobSpec,
+    *,
+    cancellation: Event,
+    emit: WorkerEmit,
+    factory: YoutubeDLFactory,
+) -> tuple[str, ...]:
+    if cancellation.is_set():
+        raise DownloadCancellationRequested
+
+    emit(WorkerEventType.PHASE, {"phase": "postprocessing"})
+    options = build_subtitle_only_options(job)
+    options["postprocessor_hooks"] = [_postprocessor_hook(cancellation, emit)]
+
+    try:
+        with factory(options) as ydl:
+            raw_info = ydl.extract_info(job.source_url, download=True)
+        if cancellation.is_set():
+            raise DownloadCancellationRequested
+        if not isinstance(raw_info, Mapping):
+            raise ValueError("yt-dlp subtitle result must be an object")
+        return _collect_output_paths(
+            cast(Mapping[str, object], raw_info),
+            output_directory=job.output_directory,
+        )
+    except DownloadCancellationRequested:
+        raise
+    except Exception:
+        emit(
+            WorkerEventType.WARNING,
+            {
+                "message": (
+                    "Subtitle tidak berhasil diambil; video tetap disimpan tanpa subtitle"
+                )
+            },
+        )
+        return ()

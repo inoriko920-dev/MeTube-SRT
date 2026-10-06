@@ -18,6 +18,7 @@ from metube_srt_desktop.application.dto.worker_protocol import (
     resolved_source_from_payload,
 )
 from metube_srt_desktop.domain.jobs import JobSpec, QualityPreset, SourceKind
+from metube_srt_desktop.domain.subtitles import SubtitleKind, SubtitleTrack
 from metube_srt_desktop.worker.runtime import run_worker
 
 
@@ -300,3 +301,44 @@ def test_runtime_entrypoint_is_after_failure_classifier() -> None:
     entrypoint_index = source.index('if __name__ == "__main__"')
 
     assert classifier_index < entrypoint_index
+
+
+
+def test_subtitle_failure_warns_but_keeps_successful_video(tmp_path: Path) -> None:
+    class SubtitleFailYoutubeDL(FakeYoutubeDL):
+        calls = 0
+
+        def extract_info(self, url: str, *, download: bool) -> object:
+            type(self).calls += 1
+            if self.options.get("skip_download") is True:
+                raise RuntimeError("subtitle provider failed")
+            return super().extract_info(url, download=download)
+
+    SubtitleFailYoutubeDL.calls = 0
+    job = JobSpec(
+        job_id="job-subtitle-fallback",
+        source_url="https://www.youtube.com/watch?v=abc",
+        output_directory=str(tmp_path),
+        quality=QualityPreset.BEST,
+        selected_subtitle=SubtitleTrack(
+            language_code="id",
+            kind=SubtitleKind.MANUAL,
+            is_original=True,
+        ),
+    )
+    command = WorkerCommandEnvelope.for_download(job, worker_run_id="run-subtitle-fallback")
+    output = StringIO()
+
+    rc = run_worker(
+        StringIO(command.to_json_line()),
+        output,
+        ydl_factory=SubtitleFailYoutubeDL,
+    )
+
+    assert rc == 0
+    events = _events(output)
+    assert SubtitleFailYoutubeDL.calls == 2
+    assert any(event.event_type is WorkerEventType.WARNING for event in events)
+    assert events[-1].event_type is WorkerEventType.SUCCEEDED
+    warning = next(event for event in events if event.event_type is WorkerEventType.WARNING)
+    assert "video tetap disimpan" in str(warning.payload["message"]).lower()
