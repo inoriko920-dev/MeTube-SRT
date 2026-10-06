@@ -143,7 +143,6 @@ def test_sqlite_queue_migrates_v1_database_with_display_title_column(tmp_path: P
     assert version == ("2",)
 
 
-
 def test_sqlite_queue_refuses_newer_schema_without_downgrading_version(
     tmp_path: Path,
 ) -> None:
@@ -152,9 +151,7 @@ def test_sqlite_queue_refuses_newer_schema_without_downgrading_version(
 
     connection = sqlite3.connect(database)
     try:
-        connection.execute(
-            "UPDATE app_meta SET value = '999' WHERE key = 'queue_schema_version'"
-        )
+        connection.execute("UPDATE app_meta SET value = '999' WHERE key = 'queue_schema_version'")
         connection.commit()
     finally:
         connection.close()

@@ -228,7 +228,6 @@ def test_download_page_default_output_directory_is_absolute(qtbot: QtBot) -> Non
         queue.shutdown(wait=True)
 
 
-
 def test_resolve_rejects_non_youtube_url_before_worker(qtbot: QtBot) -> None:
     resolver = FakeResolver()
     queue = BoundedDownloadQueue(ImmediateWorkerFactory())

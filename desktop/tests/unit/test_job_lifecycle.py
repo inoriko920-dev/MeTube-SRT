@@ -226,7 +226,6 @@ def test_updates_are_single_consumer() -> None:
         raise AssertionError("second updates() consumption should fail")
 
 
-
 def test_worker_stop_after_successful_cancel_request_is_cancelled() -> None:
     worker = FakeWorker(fail_events=True)
     run = DownloadJobRun(make_job(), worker_run_id="run-1", worker=worker)

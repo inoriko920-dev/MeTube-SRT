@@ -176,9 +176,7 @@ class SQLiteQueueStorage(QueueStoragePort):
                     try:
                         existing_version = int(str(schema_row["value"]))
                     except (TypeError, ValueError) as exc:
-                        raise QueueStorageError(
-                            "durable queue schema version is invalid"
-                        ) from exc
+                        raise QueueStorageError("durable queue schema version is invalid") from exc
                     if existing_version > _SCHEMA_VERSION:
                         raise QueueStorageError(
                             "durable queue schema is newer than this application"

@@ -156,7 +156,6 @@ def test_active_profile_skips_orphaned_metadata_without_secret() -> None:
     assert registry.active_secret() == "fake-key-valid-xxxxxxxxxxxxxxxxxxxxxxxx"
 
 
-
 def test_invalid_profile_is_skipped_for_next_usable_key() -> None:
     profiles = MemoryProfiles()
     secrets = MemorySecrets()
