@@ -290,7 +290,6 @@ def test_download_progress_events_are_throttled_without_delaying_cancel(
     assert progress_events[-1].payload["percent"] == 100.0
 
 
-
 def test_runtime_entrypoint_is_after_failure_classifier() -> None:
     from pathlib import Path
 

@@ -199,6 +199,5 @@ def _classify_runtime_failure(error: Exception) -> tuple[str, str]:
     return ("yt_dlp_error", "yt-dlp operation failed")
 
 
-
 if __name__ == "__main__":
     raise SystemExit(main())
