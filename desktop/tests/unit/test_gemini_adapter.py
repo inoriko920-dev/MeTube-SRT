@@ -158,7 +158,6 @@ def test_generate_reply_does_not_invalidate_key_on_permission_denied(
     assert PermissionDeniedClient.calls == ["permission-denied-key"]
 
 
-
 def test_generate_reply_maps_registry_cooldown_without_provider_call() -> None:
     from metube_srt_desktop.application.ports.credentials import CredentialCooldownError
 

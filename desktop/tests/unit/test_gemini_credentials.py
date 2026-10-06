@@ -267,7 +267,6 @@ def test_list_profiles_survives_credential_backend_outage() -> None:
     assert listed[0].secret_available is None
 
 
-
 def test_rate_limit_cooldown_blocks_same_key_without_rotating() -> None:
     profiles = MemoryProfiles()
     secrets = MemorySecrets()

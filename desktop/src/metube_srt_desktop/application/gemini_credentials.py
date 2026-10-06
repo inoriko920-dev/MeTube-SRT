@@ -183,7 +183,6 @@ class GeminiCredentialRegistry:
             )
 
 
-
 def _cooldown_retry_after_seconds(cooldown_until: str | None) -> int | None:
     if cooldown_until is None or not cooldown_until.strip():
         return None
