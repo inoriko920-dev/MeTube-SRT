@@ -1,8 +1,15 @@
 from __future__ import annotations
 
+from datetime import UTC, datetime, timedelta
+
+import pytest
+
 from metube_srt_desktop.application.dto.gemini_credentials import GeminiKeyProfile
 from metube_srt_desktop.application.gemini_credentials import GeminiCredentialRegistry
-from metube_srt_desktop.application.ports.credentials import CredentialStorageError
+from metube_srt_desktop.application.ports.credentials import (
+    CredentialCooldownError,
+    CredentialStorageError,
+)
 
 
 class MemoryProfiles:
@@ -258,3 +265,63 @@ def test_list_profiles_survives_credential_backend_outage() -> None:
     assert len(listed) == 1
     assert listed[0].label == "Tetap terlihat"
     assert listed[0].secret_available is None
+
+
+
+def test_rate_limit_cooldown_blocks_same_key_without_rotating() -> None:
+    profiles = MemoryProfiles()
+    secrets = MemorySecrets()
+    registry = GeminiCredentialRegistry(profiles, secrets)
+    first = registry.add_profile("Pertama", "fake-key-first-cooldown-xxxxxxxxxxxxxxxx")
+    second = registry.add_profile("Kedua", "fake-key-second-cooldown-xxxxxxxxxxxxxxx")
+
+    registry.mark_active_cooldown(seconds=60)
+
+    assert registry.active_profile() == profiles.items[first.profile_id]
+    with pytest.raises(CredentialCooldownError) as caught:
+        registry.active_secret()
+    assert caught.value.retry_after_seconds <= 60
+    assert profiles.items[second.profile_id].status == "Belum diuji"
+
+
+def test_expired_cooldown_allows_same_key_again() -> None:
+    profiles = MemoryProfiles()
+    secrets = MemorySecrets()
+    registry = GeminiCredentialRegistry(profiles, secrets)
+    profile = registry.add_profile("Utama", "fake-key-expired-cooldown-xxxxxxxxxxxxxx")
+    profiles.save_profile(
+        GeminiKeyProfile(
+            profile_id=profile.profile_id,
+            label=profile.label,
+            enabled=True,
+            priority=profile.priority,
+            status="Rate Limit",
+            cooldown_until=(datetime.now(UTC) - timedelta(seconds=1)).isoformat(),
+        )
+    )
+
+    assert registry.active_secret() == "fake-key-expired-cooldown-xxxxxxxxxxxxxx"
+
+
+def test_mark_active_status_preserves_cooldown_until_success() -> None:
+    profiles = MemoryProfiles()
+    secrets = MemorySecrets()
+    registry = GeminiCredentialRegistry(profiles, secrets)
+    profile = registry.add_profile("Utama", "fake-key-status-cooldown-xxxxxxxxxxxxxxx")
+    cooldown = (datetime.now(UTC) + timedelta(seconds=60)).isoformat()
+    profiles.save_profile(
+        GeminiKeyProfile(
+            profile_id=profile.profile_id,
+            label=profile.label,
+            enabled=True,
+            priority=profile.priority,
+            status="Rate Limit",
+            cooldown_until=cooldown,
+        )
+    )
+
+    registry.mark_active_status("Rate Limit")
+    assert profiles.items[profile.profile_id].cooldown_until == cooldown
+
+    registry.mark_active_status("Aktif")
+    assert profiles.items[profile.profile_id].cooldown_until is None

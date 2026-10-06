@@ -2,12 +2,14 @@ from __future__ import annotations
 
 from contextlib import suppress
 from dataclasses import replace
-from datetime import UTC, datetime
+from datetime import UTC, datetime, timedelta
 from hmac import compare_digest
+from math import ceil
 from uuid import uuid4
 
 from metube_srt_desktop.application.dto.gemini_credentials import GeminiKeyProfile
 from metube_srt_desktop.application.ports.credentials import (
+    CredentialCooldownError,
     CredentialSecretPort,
     CredentialStorageError,
     GeminiProfileRepositoryPort,
@@ -104,19 +106,41 @@ class GeminiCredentialRegistry:
 
     def active_secret(self) -> str | None:
         active = self._active_profile_and_secret()
-        return None if active is None else active[1]
+        if active is None:
+            return None
+        profile, secret = active
+        retry_after = _cooldown_retry_after_seconds(profile.cooldown_until)
+        if retry_after is not None:
+            raise CredentialCooldownError(retry_after)
+        return secret
 
     def mark_active_status(self, status: str) -> None:
         profile = self.active_profile()
         if profile is None:
             return
-        updated = GeminiKeyProfile(
-            profile_id=profile.profile_id,
-            label=profile.label,
-            enabled=profile.enabled,
-            priority=profile.priority,
+        clear_cooldown = status.strip().casefold() == "aktif"
+        updated = replace(
+            profile,
             status=status,
             last_tested_at=datetime.now(UTC).isoformat(timespec="seconds"),
+            cooldown_until=None if clear_cooldown else profile.cooldown_until,
+            secret_available=None,
+        )
+        self._profiles.save_profile(updated)
+
+    def mark_active_cooldown(self, *, seconds: int = 60) -> None:
+        if seconds < 1:
+            raise ValueError("cooldown seconds must be >= 1")
+        profile = self.active_profile()
+        if profile is None:
+            return
+        now = datetime.now(UTC)
+        updated = replace(
+            profile,
+            status="Rate Limit",
+            last_tested_at=now.isoformat(timespec="seconds"),
+            cooldown_until=(now + timedelta(seconds=seconds)).isoformat(timespec="seconds"),
+            secret_available=None,
         )
         self._profiles.save_profile(updated)
 
@@ -157,3 +181,19 @@ class GeminiCredentialRegistry:
             raise CredentialStorageError(
                 "Import API key gagal dan rollback tidak selesai sepenuhnya."
             )
+
+
+
+def _cooldown_retry_after_seconds(cooldown_until: str | None) -> int | None:
+    if cooldown_until is None or not cooldown_until.strip():
+        return None
+    try:
+        until = datetime.fromisoformat(cooldown_until)
+    except ValueError:
+        return None
+    if until.tzinfo is None:
+        until = until.replace(tzinfo=UTC)
+    remaining = (until.astimezone(UTC) - datetime.now(UTC)).total_seconds()
+    if remaining <= 0:
+        return None
+    return max(1, ceil(remaining))

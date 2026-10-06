@@ -21,6 +21,7 @@ def test_gemini_profile_metadata_coexists_with_queue_database(tmp_path: Path) ->
             enabled=True,
             priority=1,
             status="Aktif",
+            cooldown_until="2026-10-06T12:30:00+00:00",
         )
     )
 
@@ -32,6 +33,7 @@ def test_gemini_profile_metadata_coexists_with_queue_database(tmp_path: Path) ->
             enabled=True,
             priority=1,
             status="Aktif",
+            cooldown_until="2026-10-06T12:30:00+00:00",
         ),
     )
     assert queue_storage.load_entries() == ()

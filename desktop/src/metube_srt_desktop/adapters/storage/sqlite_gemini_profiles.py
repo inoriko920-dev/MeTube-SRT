@@ -112,14 +112,10 @@ class SQLiteGeminiProfileRepository(GeminiProfileRepositoryPort):
                 connection.executescript(_SCHEMA)
                 columns = {
                     str(row["name"])
-                    for row in connection.execute(
-                        "PRAGMA table_info(gemini_profiles)"
-                    ).fetchall()
+                    for row in connection.execute("PRAGMA table_info(gemini_profiles)").fetchall()
                 }
                 if "cooldown_until" not in columns:
-                    connection.execute(
-                        "ALTER TABLE gemini_profiles ADD COLUMN cooldown_until TEXT"
-                    )
+                    connection.execute("ALTER TABLE gemini_profiles ADD COLUMN cooldown_until TEXT")
         except sqlite3.Error as exc:
             raise CredentialStorageError("Metadata API Gemini tidak dapat diinisialisasi.") from exc
 

@@ -10,7 +10,10 @@ from google.genai import errors, types
 
 from metube_srt_desktop.application.dto.ai_chat import AIChatMessage, AIChatRole
 from metube_srt_desktop.application.ports.ai_provider import AIProviderError, AIProviderPort
-from metube_srt_desktop.application.ports.credentials import CredentialStorageError
+from metube_srt_desktop.application.ports.credentials import (
+    CredentialCooldownError,
+    CredentialStorageError,
+)
 
 _DEFAULT_MODEL = "gemini-2.5-flash"
 _GEMINI_REQUEST_TIMEOUT_MS = 30_000
@@ -35,9 +38,11 @@ class GeminiAdapter(AIProviderPort):
         *,
         model: str | None = None,
         invalid_key_handler: Callable[[], None] | None = None,
+        rate_limit_handler: Callable[[], None] | None = None,
     ) -> None:
         self._api_key_source = api_key_source
         self._invalid_key_handler = invalid_key_handler
+        self._rate_limit_handler = rate_limit_handler
         self._model = (model or os.environ.get("METUBE_SRT_GEMINI_MODEL") or _DEFAULT_MODEL).strip()
         if not self._model:
             raise ValueError("Gemini model must be non-empty")
@@ -63,6 +68,9 @@ class GeminiAdapter(AIProviderPort):
                     contents=contents,
                 )
             except AIProviderError as exc:
+                if exc.error_code == "rate_limited":
+                    self._mark_rate_limited()
+                    raise
                 if exc.error_code != "invalid_api_key":
                     raise
                 next_key = self._next_key_after_invalid(api_key)
@@ -160,7 +168,10 @@ class GeminiAdapter(AIProviderPort):
                 ),
             )
         except errors.APIError as exc:
-            raise _map_api_error(exc) from exc
+            mapped = _map_api_error(exc)
+            if mapped.error_code == "rate_limited":
+                self._mark_rate_limited()
+            raise mapped from exc
         except (OSError, TimeoutError) as exc:
             raise AIProviderError("network_error", "Gemini tidak dapat dijangkau.") from exc
         except Exception as exc:
@@ -173,9 +184,25 @@ class GeminiAdapter(AIProviderPort):
         if response.text is None or not response.text.strip():
             raise AIProviderError("empty_response", "Gemini tidak mengembalikan jawaban.")
 
+    def _mark_rate_limited(self) -> None:
+        if self._rate_limit_handler is None:
+            return
+        try:
+            self._rate_limit_handler()
+        except CredentialStorageError as exc:
+            raise AIProviderError(
+                "credential_storage_error",
+                "Cooldown API key tidak dapat disimpan.",
+            ) from exc
+
     def _require_api_key(self) -> str:
         try:
             api_key = self._api_key_source()
+        except CredentialCooldownError as exc:
+            raise AIProviderError(
+                "rate_limited",
+                f"API key Gemini sedang cooldown sekitar {exc.retry_after_seconds} detik.",
+            ) from exc
         except CredentialStorageError as exc:
             raise AIProviderError(
                 "credential_storage_error",

@@ -103,9 +103,7 @@ def test_secret_like_message_is_blocked_before_provider_call() -> None:
     assert reply.provider_ok is False
     assert reply.error_code == "secret_blocked"
     assert provider.calls == []
-    assert credential_value not in " ".join(
-        message.text for message in conversation.history()
-    )
+    assert credential_value not in " ".join(message.text for message in conversation.history())
     assert "SECRET DISEMBUNYIKAN" in conversation.history()[0].text
 
 

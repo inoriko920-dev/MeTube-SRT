@@ -89,13 +89,22 @@ def test_generate_reply_does_not_rotate_rate_limit(
     monkeypatch.setattr(gemini_module.genai, "Client", RateLimitedClient)
     RateLimitedClient.calls.clear()
     RateLimitedClient.timeouts.clear()
-    rotated = False
+    invalidated = False
+    cooled_down = False
 
     def mark_invalid() -> None:
-        nonlocal rotated
-        rotated = True
+        nonlocal invalidated
+        invalidated = True
 
-    adapter = GeminiAdapter(lambda: "rate-limited-key", invalid_key_handler=mark_invalid)
+    def mark_cooldown() -> None:
+        nonlocal cooled_down
+        cooled_down = True
+
+    adapter = GeminiAdapter(
+        lambda: "rate-limited-key",
+        invalid_key_handler=mark_invalid,
+        rate_limit_handler=mark_cooldown,
+    )
 
     with pytest.raises(Exception) as caught:
         adapter.generate_reply(
@@ -104,10 +113,10 @@ def test_generate_reply_does_not_rotate_rate_limit(
         )
 
     assert getattr(caught.value, "error_code", None) == "rate_limited"
-    assert rotated is False
+    assert invalidated is False
+    assert cooled_down is True
     assert RateLimitedClient.calls == ["rate-limited-key"]
     assert RateLimitedClient.timeouts == [30_000]
-
 
 
 def test_generate_reply_does_not_invalidate_key_on_permission_denied(
@@ -147,3 +156,27 @@ def test_generate_reply_does_not_invalidate_key_on_permission_denied(
     assert getattr(caught.value, "error_code", None) == "permission_denied"
     assert invalidated is False
     assert PermissionDeniedClient.calls == ["permission-denied-key"]
+
+
+
+def test_generate_reply_maps_registry_cooldown_without_provider_call() -> None:
+    from metube_srt_desktop.application.ports.credentials import CredentialCooldownError
+
+    calls = 0
+
+    def key_source() -> str | None:
+        nonlocal calls
+        calls += 1
+        raise CredentialCooldownError(42)
+
+    adapter = GeminiAdapter(key_source)
+
+    with pytest.raises(Exception) as caught:
+        adapter.generate_reply(
+            system_instruction="Balas singkat.",
+            messages=(AIChatMessage(AIChatRole.USER, "halo"),),
+        )
+
+    assert getattr(caught.value, "error_code", None) == "rate_limited"
+    assert "42 detik" in str(caught.value)
+    assert calls == 1
