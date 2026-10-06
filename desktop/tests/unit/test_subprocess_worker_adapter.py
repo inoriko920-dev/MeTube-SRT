@@ -13,6 +13,9 @@ from metube_srt_desktop.adapters.download import (
     WorkerProcessError,
     WorkerProtocolError,
 )
+from metube_srt_desktop.adapters.download.subprocess_worker import (
+    worker_process_environment,
+)
 from metube_srt_desktop.application.dto.worker_protocol import (
     WORKER_PROTOCOL_VERSION,
     WorkerCommandEnvelope,
@@ -337,3 +340,16 @@ def test_missing_terminal_stream_close_does_not_wait_forever() -> None:
 
     assert process.terminated is True
     assert process.killed is True
+
+
+
+def test_worker_process_environment_forces_utf8_protocol(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setenv("PYTHONUTF8", "0")
+    monkeypatch.setenv("PYTHONIOENCODING", "cp1252")
+
+    environment = worker_process_environment()
+
+    assert environment["PYTHONUTF8"] == "1"
+    assert environment["PYTHONIOENCODING"] == "utf-8"

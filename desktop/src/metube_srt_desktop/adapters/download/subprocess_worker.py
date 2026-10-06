@@ -78,6 +78,13 @@ def default_worker_argv() -> tuple[str, ...]:
     return (sys.executable, "-m", "metube_srt_desktop.worker")
 
 
+def worker_process_environment() -> dict[str, str]:
+    environment = os.environ.copy()
+    environment["PYTHONUTF8"] = "1"
+    environment["PYTHONIOENCODING"] = "utf-8"
+    return environment
+
+
 def _default_process_factory(argv: Sequence[str]) -> WorkerProcess:
     creationflags = subprocess.CREATE_NO_WINDOW if sys.platform == "win32" else 0
     process = subprocess.Popen(
@@ -90,6 +97,7 @@ def _default_process_factory(argv: Sequence[str]) -> WorkerProcess:
         errors="strict",
         bufsize=1,
         creationflags=creationflags,
+        env=worker_process_environment(),
     )
     return cast(WorkerProcess, process)
 
