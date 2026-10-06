@@ -188,3 +188,49 @@ def test_failure_event_does_not_echo_raw_exception_message() -> None:
     serialized = output.getvalue()
     assert "super-secret" not in serialized
     assert _events(output)[-1].event_type is WorkerEventType.FAILED
+
+
+
+def test_worker_classifies_youtube_login_failure_without_echoing_raw_details() -> None:
+    class LoginRequiredYoutubeDL(FakeYoutubeDL):
+        def extract_info(self, url: str, *, download: bool) -> object:
+            raise RuntimeError(
+                "ERROR: Sign in to confirm you're not a bot "
+                "https://example.test/?token=do-not-echo"
+            )
+
+    command = WorkerCommandEnvelope.for_resolve(
+        ResolveRequest("https://www.youtube.com/watch?v=abc"),
+        job_id="resolve-login",
+        worker_run_id="run-login",
+    )
+    output = StringIO()
+
+    rc = run_worker(StringIO(command.to_json_line()), output, ydl_factory=LoginRequiredYoutubeDL)
+
+    assert rc == 1
+    terminal = _events(output)[-1]
+    assert terminal.event_type is WorkerEventType.FAILED
+    assert terminal.payload["error_code"] == "youtube_login_required"
+    assert "verifikasi" in str(terminal.payload["message"]).lower()
+    assert "do-not-echo" not in output.getvalue()
+
+
+def test_worker_classifies_network_failure_without_raw_exception() -> None:
+    class NetworkFailingYoutubeDL(FakeYoutubeDL):
+        def extract_info(self, url: str, *, download: bool) -> object:
+            raise RuntimeError("Unable to download webpage: connection reset by peer secret-value")
+
+    command = WorkerCommandEnvelope.for_resolve(
+        ResolveRequest("https://www.youtube.com/watch?v=abc"),
+        job_id="resolve-network",
+        worker_run_id="run-network",
+    )
+    output = StringIO()
+
+    rc = run_worker(StringIO(command.to_json_line()), output, ydl_factory=NetworkFailingYoutubeDL)
+
+    assert rc == 1
+    terminal = _events(output)[-1]
+    assert terminal.payload["error_code"] == "network_error"
+    assert "secret-value" not in output.getvalue()

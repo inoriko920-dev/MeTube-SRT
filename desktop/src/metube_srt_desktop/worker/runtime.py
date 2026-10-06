@@ -123,10 +123,11 @@ def run_worker(
             },
         )
         return 1
-    except Exception:
+    except Exception as exc:
+        error_code, message = _classify_runtime_failure(exc)
         emitter.emit(
             WorkerEventType.FAILED,
-            {"error_code": "yt_dlp_error", "message": "yt-dlp operation failed"},
+            {"error_code": error_code, "message": message},
         )
         return 1
 
@@ -161,3 +162,47 @@ def main() -> int:
 
 if __name__ == "__main__":
     raise SystemExit(main())
+
+
+
+def _classify_runtime_failure(error: Exception) -> tuple[str, str]:
+    text = str(error).casefold()
+
+    if (
+        "sign in to confirm you" in text
+        or "not a bot" in text
+        or "login_required" in text
+    ):
+        return (
+            "youtube_login_required",
+            "YouTube meminta verifikasi atau login untuk koneksi ini",
+        )
+
+    if "video unavailable" in text or "this video is unavailable" in text:
+        return ("video_unavailable", "Video tidak tersedia di YouTube")
+
+    if "requested format is not available" in text:
+        return (
+            "format_unavailable",
+            "Kualitas atau format yang diminta tidak tersedia untuk video ini",
+        )
+
+    if "ffmpeg not found" in text or "ffprobe not found" in text:
+        return (
+            "media_tool_missing",
+            "FFmpeg atau ffprobe tidak tersedia untuk tahap pemrosesan",
+        )
+
+    network_markers = (
+        "unable to download webpage",
+        "timed out",
+        "connection reset",
+        "connection refused",
+        "network is unreachable",
+        "temporary failure in name resolution",
+        "name or service not known",
+    )
+    if any(marker in text for marker in network_markers):
+        return ("network_error", "Koneksi ke YouTube gagal atau terputus")
+
+    return ("yt_dlp_error", "yt-dlp operation failed")
