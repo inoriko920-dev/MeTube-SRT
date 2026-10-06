@@ -113,9 +113,7 @@ def test_sensitive_download_context_is_redacted_before_provider_call() -> None:
     account_name = "user"
     credential_value = "pass" + "-value"
     context = AIAgentContext(
-        current_url=(
-            f"https://{account_name}:{credential_value}@www.youtube.com/watch?v=abc"
-        ),
+        current_url=(f"https://{account_name}:{credential_value}@www.youtube.com/watch?v=abc"),
         output_directory="D:/Video",
     )
 
@@ -127,7 +125,6 @@ def test_sensitive_download_context_is_redacted_before_provider_call() -> None:
     assert account_name not in serialized
     assert credential_value not in serialized
     assert "SECRET DISEMBUNYIKAN" in serialized
-
 
 
 def test_named_api_key_redaction_produces_one_clean_marker() -> None:

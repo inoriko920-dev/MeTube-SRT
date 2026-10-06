@@ -7,9 +7,7 @@ _REDACTED = "[SECRET DISEMBUNYIKAN]"
 
 _API_KEY_PATTERN = re.compile(r"AIza[0-9A-Za-z_-]{20,}")
 _BEARER_PATTERN = re.compile(r"(?i)\bBearer\s+[A-Za-z0-9._~+\-/]{12,}=*")
-_BASIC_AUTH_URL_PATTERN = re.compile(
-    r"(?i)\b(https?://)([^/\s:@]+):([^@\s/]+)@"
-)
+_BASIC_AUTH_URL_PATTERN = re.compile(r"(?i)\b(https?://)([^/\s:@]+):([^@\s/]+)@")
 _NAMED_SECRET_PATTERN = re.compile(
     r"(?i)\b("
     r"api[_ -]?key|"
