@@ -22,6 +22,7 @@ from metube_srt_desktop.adapters.storage.sqlite_gemini_profiles import (
 from metube_srt_desktop.application.ai_conversation import HumanlikeAIConversation
 from metube_srt_desktop.application.download_queue import BoundedDownloadQueue
 from metube_srt_desktop.application.gemini_credentials import GeminiCredentialRegistry
+from metube_srt_desktop.infrastructure.runtime_lock import RuntimeDataLock
 from metube_srt_desktop.presentation.shell.main_window import MainWindow
 
 
@@ -71,8 +72,33 @@ def run_desktop(argv: Sequence[str] | None = None) -> int:
     app.setApplicationName("MeTube-SRT Desktop")
     app.setOrganizationName("MeTube-SRT")
     data_directory, fallback_directory = resolve_application_data_directory()
-    window, queue = build_runtime_window(data_directory=data_directory)
-    app.aboutToQuit.connect(lambda: queue.shutdown(wait=True, cancel_active=True))
+    runtime_lock = RuntimeDataLock(data_directory)
+    if not runtime_lock.try_acquire():
+        QMessageBox.warning(
+            None,
+            "MeTube-SRT sudah berjalan",
+            (
+                "Folder data ini sedang digunakan oleh instance MeTube-SRT lain:\n"
+                f"{data_directory}\n\n"
+                "Tutup instance yang sedang berjalan sebelum membuka aplikasi lagi."
+            ),
+        )
+        return 2
+
+    try:
+        window, queue = build_runtime_window(data_directory=data_directory)
+    except BaseException:
+        runtime_lock.release()
+        raise
+
+    def shutdown_runtime() -> None:
+        try:
+            queue.shutdown(wait=True, cancel_active=True)
+        finally:
+            runtime_lock.release()
+
+    app.aboutToQuit.connect(shutdown_runtime)
+    window.destroyed.connect(lambda: runtime_lock.release())
     window.show()
     if fallback_directory is not None:
         QMessageBox.warning(
@@ -86,7 +112,10 @@ def run_desktop(argv: Sequence[str] | None = None) -> int:
         )
 
     if owns_application:
-        return app.exec()
+        try:
+            return app.exec()
+        finally:
+            runtime_lock.release()
     return 0
 
 
