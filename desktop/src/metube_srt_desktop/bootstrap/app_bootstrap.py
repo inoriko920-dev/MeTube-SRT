@@ -40,7 +40,10 @@ def build_runtime_window(
     profile_repository = SQLiteGeminiProfileRepository(database_path)
     secret_store = KeyringGeminiSecretStore()
     credential_registry = GeminiCredentialRegistry(profile_repository, secret_store)
-    ai_provider = GeminiAdapter(credential_registry.active_secret)
+    ai_provider = GeminiAdapter(
+        credential_registry.active_secret,
+        invalid_key_handler=lambda: credential_registry.mark_active_status("Tidak valid"),
+    )
     ai_conversation = HumanlikeAIConversation(ai_provider)
 
     return (

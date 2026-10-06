@@ -33,8 +33,10 @@ class GeminiAdapter(AIProviderPort):
         api_key_source: Callable[[], str | None],
         *,
         model: str | None = None,
+        invalid_key_handler: Callable[[], None] | None = None,
     ) -> None:
         self._api_key_source = api_key_source
+        self._invalid_key_handler = invalid_key_handler
         self._model = (model or os.environ.get("METUBE_SRT_GEMINI_MODEL") or _DEFAULT_MODEL).strip()
         if not self._model:
             raise ValueError("Gemini model must be non-empty")
@@ -49,8 +51,33 @@ class GeminiAdapter(AIProviderPort):
         system_instruction: str,
         messages: tuple[AIChatMessage, ...],
     ) -> str:
-        api_key = self._require_api_key()
         contents = [_to_content(message) for message in messages]
+        api_key = self._require_api_key()
+
+        for _ in range(100):
+            try:
+                return self._generate_with_key(
+                    api_key,
+                    system_instruction=system_instruction,
+                    contents=contents,
+                )
+            except AIProviderError as exc:
+                if exc.error_code != "invalid_api_key":
+                    raise
+                next_key = self._next_key_after_invalid(api_key)
+                if next_key is None:
+                    raise
+                api_key = next_key
+
+        raise AIProviderError("invalid_api_key", "Semua API key Gemini aktif ditolak.")
+
+    def _generate_with_key(
+        self,
+        api_key: str,
+        *,
+        system_instruction: str,
+        contents: list[types.Content],
+    ) -> str:
         client: genai.Client | None = None
         try:
             client = genai.Client(api_key=api_key)
@@ -85,6 +112,31 @@ class GeminiAdapter(AIProviderPort):
         if text is None or not text.strip():
             raise AIProviderError("empty_response", "Gemini tidak mengembalikan jawaban.")
         return text.strip()
+
+    def _next_key_after_invalid(self, previous_key: str) -> str | None:
+        if self._invalid_key_handler is None:
+            return None
+        try:
+            self._invalid_key_handler()
+        except CredentialStorageError as exc:
+            raise AIProviderError(
+                "credential_storage_error",
+                "Status API key tidak dapat diperbarui.",
+            ) from exc
+
+        try:
+            candidate = self._api_key_source()
+        except CredentialStorageError as exc:
+            raise AIProviderError(
+                "credential_storage_error",
+                "Penyimpanan aman API key tidak dapat diakses.",
+            ) from exc
+        if candidate is None:
+            return None
+        clean = candidate.strip()
+        if not clean or clean == previous_key:
+            return None
+        return clean
 
     def check(self) -> None:
         api_key = self._require_api_key()
