@@ -5,7 +5,9 @@ import sys
 from pathlib import Path
 
 import pytest
+from PySide6.QtCore import QStandardPaths
 
+import metube_srt_desktop.bootstrap.app_bootstrap as app_bootstrap
 from metube_srt_desktop.bootstrap.app_bootstrap import (
     application_data_directory,
     configure_portable_tools,
@@ -77,14 +79,14 @@ def test_application_data_directory_falls_back_when_portable_is_not_writable(
     monkeypatch.delenv("METUBE_SRT_DATA_DIR", raising=False)
     monkeypatch.setattr(sys, "frozen", True, raising=False)
     monkeypatch.setattr(sys, "executable", str(app))
-    monkeypatch.setattr(
-        "metube_srt_desktop.bootstrap.app_bootstrap._ensure_writable_directory",
-        lambda directory: False,
-    )
-    monkeypatch.setattr(
-        "metube_srt_desktop.bootstrap.app_bootstrap.QStandardPaths.writableLocation",
-        lambda location: str(fallback),
-    )
+    def not_writable(directory: Path) -> bool:
+        return False
+
+    def fallback_location(location: QStandardPaths.StandardLocation) -> str:
+        return str(fallback)
+
+    monkeypatch.setattr(app_bootstrap, "_ensure_writable_directory", not_writable)
+    monkeypatch.setattr(QStandardPaths, "writableLocation", fallback_location)
 
     assert application_data_directory() == fallback
     assert fallback.is_dir()
