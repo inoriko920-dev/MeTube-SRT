@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import os
 import sys
 from collections.abc import Sequence
 from pathlib import Path
@@ -20,6 +21,7 @@ def build_runtime_window(
     *,
     data_directory: Path | None = None,
 ) -> tuple[MainWindow, BoundedDownloadQueue]:
+    _configure_portable_tools()
     directory = data_directory or _application_data_directory()
     storage = SQLiteQueueStorage(directory / "app.db")
     worker_factory = SubprocessDownloadWorkerFactory()
@@ -53,3 +55,21 @@ def _application_data_directory() -> Path:
     if not raw_path:
         raise RuntimeError("Qt did not provide an application data directory")
     return Path(raw_path)
+
+
+
+def _configure_portable_tools() -> None:
+    configured = os.environ.get("METUBE_SRT_TOOLS_DIR", "").strip()
+    tools_directory: Path | None = Path(configured).expanduser() if configured else None
+
+    if tools_directory is None and getattr(sys, "frozen", False):
+        tools_directory = Path(sys.executable).resolve().parent / "tools"
+
+    if tools_directory is None or not tools_directory.is_dir():
+        return
+
+    current_path = os.environ.get("PATH", "")
+    tools_text = str(tools_directory.resolve())
+    path_parts = [part for part in current_path.split(os.pathsep) if part]
+    if tools_text.casefold() not in {part.casefold() for part in path_parts}:
+        os.environ["PATH"] = os.pathsep.join((tools_text, *path_parts))

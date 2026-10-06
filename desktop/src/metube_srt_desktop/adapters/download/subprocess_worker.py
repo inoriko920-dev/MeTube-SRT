@@ -1,9 +1,11 @@
 from __future__ import annotations
 
+import os
 import subprocess
 import sys
 from collections.abc import Callable, Iterable, Mapping, Sequence
 from contextlib import suppress
+from pathlib import Path
 from threading import Lock, RLock, Thread
 from typing import Protocol, TextIO, cast
 from uuid import uuid4
@@ -61,6 +63,18 @@ class WorkerProcess(Protocol):
 ProcessFactory = Callable[[Sequence[str]], WorkerProcess]
 
 
+def _default_worker_argv() -> tuple[str, ...]:
+    override = os.environ.get("METUBE_SRT_WORKER_EXE", "").strip()
+    if override:
+        return (override,)
+
+    if getattr(sys, "frozen", False):
+        worker = Path(sys.executable).resolve().with_name("MeTube-SRT-Worker.exe")
+        return (str(worker),)
+
+    return (sys.executable, "-m", "metube_srt_desktop.worker")
+
+
 def _default_process_factory(argv: Sequence[str]) -> WorkerProcess:
     creationflags = subprocess.CREATE_NO_WINDOW if sys.platform == "win32" else 0
     process = subprocess.Popen(
@@ -100,9 +114,7 @@ class SubprocessWorkerAdapter(DownloadWorkerPort):
 
         self._command = command
         self._worker_argv = tuple(
-            worker_argv
-            if worker_argv is not None
-            else (sys.executable, "-m", "metube_srt_desktop.worker")
+            worker_argv if worker_argv is not None else _default_worker_argv()
         )
         if not self._worker_argv:
             raise ValueError("worker_argv must not be empty")
