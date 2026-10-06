@@ -1,6 +1,6 @@
-from pathlib import Path
 import subprocess
 import sys
+from pathlib import Path
 
 from metube_srt_desktop.infrastructure.runtime_lock import RuntimeDataLock
 

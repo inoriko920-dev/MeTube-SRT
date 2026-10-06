@@ -483,7 +483,6 @@ def test_existing_srt_is_announced_with_media_without_warning(tmp_path: Path) ->
     assert not any(event.event_type is WorkerEventType.WARNING for event in events)
 
 
-
 def test_download_supports_unicode_and_spaces_output_directory(tmp_path: Path) -> None:
     output_directory = tmp_path / "Unduhan Uji ü ñ 空 白"
     job = JobSpec(
