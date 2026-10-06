@@ -388,6 +388,10 @@ def test_target_reservation_is_released_only_after_worker_finishes() -> None:
 
     worker.release()
     assert _wait_terminal(queue, "same-1") is JobState.SUCCEEDED
+    deadline = monotonic() + 2.0
+    while queue.active_count and monotonic() < deadline:
+        sleep(0.01)
+    assert queue.active_count == 0
 
     queue.enqueue(_same_target_job(2))
     assert factory.wait_created(2)

@@ -3,6 +3,8 @@ from __future__ import annotations
 from collections.abc import Iterable
 from pathlib import Path
 
+import pytest
+
 from metube_srt_desktop.adapters.storage import SQLiteQueueStorage
 from metube_srt_desktop.application.download_queue import BoundedDownloadQueue
 from metube_srt_desktop.application.dto.job_runtime import JobRuntimeSnapshot
@@ -177,8 +179,6 @@ def test_restore_rejects_duplicate_queued_targets_before_dispatch(tmp_path: Path
         )
     )
     factory = CapturingFactory()
-
-    import pytest
 
     with pytest.raises(ValueError, match="duplicate active download target"):
         BoundedDownloadQueue.restore(factory, storage, concurrency=1)
