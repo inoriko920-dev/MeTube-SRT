@@ -169,3 +169,40 @@ def test_invalid_profile_is_skipped_for_next_usable_key() -> None:
     assert profiles.items[first.profile_id].status == "Tidak valid"
     assert registry.active_profile() == second
     assert registry.active_secret() == "fake-key-second-xxxxxxxxxxxxxxxxxxx"
+
+
+
+def test_add_profile_rejects_duplicate_existing_secret() -> None:
+    profiles = MemoryProfiles()
+    secrets = MemorySecrets()
+    registry = GeminiCredentialRegistry(profiles, secrets)
+    key = "fake-key-duplicate-existing-xxxxxxxxxxxxxx"
+
+    registry.add_profile("Pertama", key)
+
+    try:
+        registry.add_profile("Kedua", key)
+    except ValueError as exc:
+        assert "sudah tersimpan" in str(exc)
+    else:
+        raise AssertionError("expected duplicate existing key rejection")
+
+    assert len(profiles.list_profiles()) == 1
+    assert len(secrets.items) == 1
+
+
+def test_profile_label_cannot_store_secret_in_sqlite_metadata() -> None:
+    profiles = MemoryProfiles()
+    secrets = MemorySecrets()
+    registry = GeminiCredentialRegistry(profiles, secrets)
+    key = "AI" + "za" + ("x" * 30)
+
+    try:
+        registry.add_profile(key, key)
+    except ValueError as exc:
+        assert "Nama profil" in str(exc)
+    else:
+        raise AssertionError("expected secret-bearing label rejection")
+
+    assert profiles.list_profiles() == ()
+    assert secrets.items == {}

@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from contextlib import suppress
 from datetime import UTC, datetime
+from hmac import compare_digest
 from uuid import uuid4
 
 from metube_srt_desktop.application.dto.gemini_credentials import GeminiKeyProfile
@@ -10,6 +11,7 @@ from metube_srt_desktop.application.ports.credentials import (
     CredentialStorageError,
     GeminiProfileRepositoryPort,
 )
+from metube_srt_desktop.application.redaction import redact_sensitive_text
 
 _MAX_PROFILES = 100
 _INVALID_PROFILE_STATUSES = {"tidak valid", "invalid"}
@@ -36,10 +38,14 @@ class GeminiCredentialRegistry:
             raise ValueError("Nama API key tidak boleh kosong.")
         if len(clean_key) < 20:
             raise ValueError("API key Gemini terlihat tidak valid.")
+        if clean_label == clean_key or redact_sensitive_text(clean_label).secret_detected:
+            raise ValueError("Nama profil tidak boleh berisi API key, token, atau cookie.")
 
         existing = self._profiles.list_profiles()
         if len(existing) >= _MAX_PROFILES:
             raise ValueError("Maksimal 100 API key Gemini.")
+        if self._secret_already_exists(existing, clean_key):
+            raise ValueError("API key Gemini ini sudah tersimpan.")
 
         profile = GeminiKeyProfile(
             profile_id=uuid4().hex,
@@ -102,6 +108,17 @@ class GeminiCredentialRegistry:
             last_tested_at=datetime.now(UTC).isoformat(timespec="seconds"),
         )
         self._profiles.save_profile(updated)
+
+    def _secret_already_exists(
+        self,
+        profiles: tuple[GeminiKeyProfile, ...],
+        candidate: str,
+    ) -> bool:
+        for profile in profiles:
+            stored = self._secrets.get_secret(profile.profile_id)
+            if stored is not None and compare_digest(stored.strip(), candidate):
+                return True
+        return False
 
     def _active_profile_and_secret(self) -> tuple[GeminiKeyProfile, str] | None:
         for profile in self._profiles.list_profiles():
