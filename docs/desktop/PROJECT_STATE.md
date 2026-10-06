@@ -1,66 +1,107 @@
 # MeTube-SRT Desktop — Project State
 
-## Verified baseline
+## Current baseline
 
-- Factory step completed: **STEP 09 — Native App Shell / UI Implementation**.
-- STEP 08 foundation remains verified and preserved.
-- STEP 09 working branch: `step09/app-shell`.
-- Verified STEP 09 head before evidence checkpoint: `bd53a91fc4b7caa4260fe2ea07f96117ac4e5242`.
-- Pull request: #4.
-- Windows Desktop CI PR run: `37353004219` — **SUCCESS**.
-- Legacy MeTube-SRT CI PR run: `37353004216` — **SUCCESS**.
-- Legacy web runtime remains present and protected.
+- STEP 09 native app shell remains merged on `main`.
+- STEP 10 is active in pull request **#5 — Real download core foundation** on `step10/download-core`.
+- ASTRA bug-audit baseline: `9686ca1ca40058f2b527b60ce88a63cab55305dc`.
+- ASTRA B01–B07 stabilized code baseline: `825848fbb2123531b66861a31627ea5e383c5633`.
+- Latest automated maturity baseline: `261f1bd560667024389c508944896d2754344023`.
+- Legacy web runtime remains present and protected; this batch did not redesign UI or replace the legacy Docker release.
 
-## Verified STEP 09 capabilities
+## STEP 10 capabilities implemented
 
-- real native PySide6 `QMainWindow` exists;
-- global navigation is fixed to Unduh / Antrian / API Gemini / Pengaturan;
-- central routing uses `QStackedWidget`;
-- Download page exposes the frozen SRT checkbox object contract;
-- right AI Agent workspace shell exists and can collapse;
-- Download / Queue / API Keys / Settings native fixture pages render;
-- centralized design tokens and QSS exist;
-- Pyright strict passes with 0 errors / 0 warnings;
-- all three import-linter architecture contracts pass;
-- pytest: **14 passed**;
-- foundation self-check passes;
-- package `python -m metube_srt_desktop --self-check` passes;
-- Windows CI captures the STEP 09 shell screenshot at 1440×900;
-- enforced detect-secrets gate reports 0 findings;
-- legacy frontend/backend CI remains green.
+The native desktop path currently includes:
 
-## Toolchain currently locked
+- typed single / playlist / channel resolve;
+- recursive channel-tab traversal to unique leaf videos;
+- frozen subtitle policy: manual/creator -> proven original auto-generated -> none;
+- no automatic subtitle translation;
+- isolated yt-dlp child worker with typed NDJSON protocol;
+- bounded, durable SQLite queue/restart recovery;
+- exclusive runtime ownership per data directory;
+- active/pending target reservation to prevent overlapping writes for the same video+folder;
+- verified final media/SRT output reporting;
+- Qt Download/Queue controller binding;
+- Gemini conversation with Keyring-backed profiles, cooldown handling, transport retry, and request-profile identity;
+- conservative secret redaction including complete Cookie headers;
+- Windows preview packaging with Deno/FFmpeg/ffprobe staging.
 
-- CPython 3.13.16
-- uv 0.12.22
-- PySide6 6.11.2
-- yt-dlp 2026.8.19
-- google-genai 2.28.0
-- keyring 25.7.0
-- Ruff 0.16.10
-- Pyright 1.1.414
-- pytest 9.1.1
-- pytest-qt 4.5.0
-- import-linter 2.15
-- detect-secrets 1.5.0
+The AI panel remains a conversation/help surface. It is **not** yet a verified natural-language command executor for download actions.
 
-## Honest provisional items
+## ASTRA B01–B07 stabilization status
 
-- Only 10/20 frozen UI reference image bytes are currently stored in Git (`UI_04`, `UI_08`–`UI_16`).
-- The remaining 10 frozen master images have authoritative filenames and SHA-256 values in the manifest, but their repository byte storage is still pending.
-- The native UI is still fixture-driven; live desktop yt-dlp execution is not yet connected.
-- Live Gemini command execution, real API-key storage/rotation, production FFmpeg/Deno bundling, updater, and release packaging are not yet verified.
+| Bug | Result |
+| --- | --- |
+| B01 nested channel tabs treated as videos | IMPLEMENTED + VERIFIED_FIXTURE |
+| B02 concurrent jobs can share one download target | IMPLEMENTED + VERIFIED_FIXTURE |
+| B03 two runtimes can mutate one queue/database | IMPLEMENTED + VERIFIED_FIXTURE |
+| B04 nonexistent output / unverified SRT reported as success | IMPLEMENTED + VERIFIED_FIXTURE |
+| B05 late Gemini result updates the wrong key profile | IMPLEMENTED + VERIFIED_FIXTURE |
+| B06 HTTPX transport failures bypass application retry | IMPLEMENTED + VERIFIED_FIXTURE |
+| B07 Cookie header tail survives redaction | IMPLEMENTED + VERIFIED_FIXTURE |
 
-## Locked product behavior for the next feature wave
+These labels do **not** mean VERIFIED_LIVE. They mean the audited scenarios are covered by deterministic regression tests and the complete desktop CI gate is green on the stabilized code baseline.
 
-- target remains a real Windows desktop app;
-- single video, playlist, and channel downloads must remain supported;
-- `Download subtitle (SRT)` is optional;
-- creator/manual subtitle has priority;
-- original auto-generated caption is the fallback;
-- subtitles must never be auto-translated;
-- lack of subtitles must not fail the video download.
+## Deterministic verification
+
+Desktop CI run **37513841827** on `261f1bd560667024389c508944896d2754344023`: **SUCCESS**.
+
+- Ruff format: PASS;
+- Ruff lint: PASS;
+- Pyright strict: PASS;
+- import-linter: PASS;
+- pytest: **187 passed**;
+- live qualification wrapper validation: PASS;
+- foundation check: PASS;
+- package self-check: PASS;
+- STEP 09 screenshot capture: PASS;
+- secret scan: PASS — 0 findings.
+
+Legacy CI run **37513841856** on the same SHA: **SUCCESS**.
+
+## Windows preview build
+
+Desktop Windows Preview Build run **37513834241** on the same SHA: **SUCCESS**.
+
+- artifact: `MeTube-SRT-Windows-x64-Preview`;
+- artifact id: `11436576507`;
+- artifact size: `224666735` bytes;
+- artifact digest: `sha256:a27e22969709609f0626e5e80d91b94d6562678cd480f85639a7f3dbde73e61d`;
+- packaged desktop self-check: PASS before ZIP and after re-extraction;
+- packaged credential self-check: PASS before ZIP and after re-extraction;
+- packaged worker READY/CANCELLED smoke: PASS before ZIP and after re-extraction;
+- required archive structure + BUILD_INFO source SHA: PASS.
+
+This proves the portable preview package can be built from the stabilized code. It does **not** by itself prove two-instance behavior, crash recovery, writable/fallback paths, Unicode paths, or real YouTube/Gemini behavior on a normal user PC.
+
+## Windows / live qualification status
+
+- **VERIFIED_FIXTURE:** PASS.
+- **WINDOWS_BUILD:** PASS.
+- **VERIFIED_WINDOWS behavioral qualification:** PENDING on a normal Windows PC.
+- **VERIFIED_LIVE YouTube:** not declared PASS.
+- Fresh hosted live qualification run **37514921314** remains **BLOCKED_ENVIRONMENT**: external tools passed setup/verification, then YouTube requested verification/login. Evidence artifact: `11436712597`.
+
+Automated Windows/fixture qualification now also covers:
+
+- exclusive runtime lock across separate processes on Windows CI;
+- stale-lock recovery after forced owner-process termination;
+- bootstrap refusal before runtime/database construction when the data directory is busy;
+- cancellation during postprocessing plus existing download cancellation boundaries;
+- portable data directory and LocalAppData fallback selection;
+- Unicode/spaces output directories;
+- invalid output target failure without false OUTPUT_READY/SUCCESS;
+- Gemini profile-bound late-result handling, cooldown preservation, transport retry, and cancellation;
+- ZIP re-extraction and packaged self/credential/worker smoke.
+
+Still requires genuine external/live evidence rather than simulation:
+
+- real YouTube single video, flat playlist, and root channel with multiple tabs on a non-datacenter network;
+- real SRT available/unavailable outcomes and final media/SRT readability from YouTube;
+- Windows ACL-denied/non-writable destination behavior on a real restricted filesystem;
+- real Gemini request using a user-configured valid API key.
 
 ## Next action
 
-Proceed to **S10-001 — Real download core: resolve, enqueue, video + optional SRT**. Connect the native shell to the application/worker boundary using the locked subtitle policy. Do not begin Gemini command execution or redesign the frozen UI during this wave.
+Keep S10-001 in qualification for the genuinely external/live gates above. The deterministic application, Windows CI, packaging, lock/crash, path, cancellation, queue, Gemini-race, and archive gates are green; do not mislabel hosted YouTube anti-bot blocking as an application failure or as a live PASS.

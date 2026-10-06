@@ -1,8 +1,12 @@
 from __future__ import annotations
 
+from pathlib import Path
+
+from PySide6.QtCore import QStandardPaths
 from PySide6.QtWidgets import (
     QCheckBox,
     QComboBox,
+    QFileDialog,
     QFrame,
     QHBoxLayout,
     QLabel,
@@ -44,11 +48,11 @@ class DownloadPage(QWidget):
         self.url_input = QLineEdit()
         self.url_input.setObjectName("download.url_input")
         self.url_input.setPlaceholderText("Tempel URL YouTube…")
-        resolve_button = QPushButton("Periksa")
-        resolve_button.setObjectName("download.resolve_button")
-        resolve_button.setProperty("role", "secondary")
+        self.resolve_button = QPushButton("Periksa")
+        self.resolve_button.setObjectName("download.resolve_button")
+        self.resolve_button.setProperty("role", "secondary")
         url_row.addWidget(self.url_input, 1)
-        url_row.addWidget(resolve_button)
+        url_row.addWidget(self.resolve_button)
         card_layout.addLayout(url_row)
 
         options = QHBoxLayout()
@@ -70,24 +74,25 @@ class DownloadPage(QWidget):
         output_row = QHBoxLayout()
         output_label = QLabel("Simpan ke")
         output_label.setProperty("muted", True)
-        self.output_path = QLineEdit(r"Downloads\MeTube-SRT")
+        self.output_path = QLineEdit(_default_output_directory())
         self.output_path.setObjectName("download.output_path")
-        browse = QPushButton("Pilih folder")
-        browse.setProperty("role", "secondary")
+        self.browse_button = QPushButton("Pilih folder")
+        self.browse_button.setProperty("role", "secondary")
+        self.browse_button.clicked.connect(self._choose_output_directory)
         output_row.addWidget(output_label)
         output_row.addWidget(self.output_path, 1)
-        output_row.addWidget(browse)
+        output_row.addWidget(self.browse_button)
         card_layout.addLayout(output_row)
 
         action_row = QHBoxLayout()
         note = QLabel("Manual > auto-generated asli > tanpa SRT")
         note.setProperty("muted", True)
-        start = QPushButton("Tambahkan ke antrian")
-        start.setObjectName("download.enqueue_button")
-        start.setProperty("role", "primary")
+        self.enqueue_button = QPushButton("Tambahkan ke antrian")
+        self.enqueue_button.setObjectName("download.enqueue_button")
+        self.enqueue_button.setProperty("role", "primary")
         action_row.addWidget(note)
         action_row.addStretch(1)
-        action_row.addWidget(start)
+        action_row.addWidget(self.enqueue_button)
         card_layout.addLayout(action_row)
         layout.addWidget(card)
 
@@ -96,15 +101,64 @@ class DownloadPage(QWidget):
         state_layout = QVBoxLayout(state)
         state_layout.setContentsMargins(18, 20, 18, 20)
         state_layout.setSpacing(7)
-        empty_title = QLabel("Siap menerima URL")
-        empty_title.setProperty("sectionTitle", True)
-        empty_text = QLabel(
+        self.state_title = QLabel("Siap menerima URL")
+        self.state_title.setProperty("sectionTitle", True)
+        self.state_text = QLabel(
             "Tempel satu URL, playlist, atau channel. Setelah diperiksa, "
             "item akan muncul di sini sebelum masuk antrian."
         )
-        empty_text.setProperty("muted", True)
-        empty_text.setWordWrap(True)
-        state_layout.addWidget(empty_title)
-        state_layout.addWidget(empty_text)
+        self.state_text.setProperty("muted", True)
+        self.state_text.setWordWrap(True)
+        state_layout.addWidget(self.state_title)
+        state_layout.addWidget(self.state_text)
         state_layout.addStretch(1)
         layout.addWidget(state, 1)
+
+    def set_busy(self, busy: bool) -> None:
+        self.resolve_button.setDisabled(busy)
+        self.enqueue_button.setDisabled(busy)
+        self.url_input.setDisabled(busy)
+        self.quality_combo.setDisabled(busy)
+        self.subtitle_checkbox.setDisabled(busy)
+        self.output_path.setDisabled(busy)
+        self.browse_button.setDisabled(busy)
+
+    def show_resolving(self) -> None:
+        self.state_title.setText("Memeriksa URL…")
+        self.state_text.setText(
+            "Membaca metadata video, playlist, atau channel tanpa mengunduh media."
+        )
+
+    def show_resolved(self, title: str, *, item_count: int) -> None:
+        self.state_title.setText("Siap ditambahkan ke antrian")
+        self.state_text.setText(f"{title} • {item_count} video ditemukan.")
+
+    def show_enqueuing(self) -> None:
+        self.state_title.setText("Menambahkan ke antrian…")
+        self.state_text.setText("Membekukan opsi kualitas dan subtitle untuk setiap video.")
+
+    def show_queued(self, item_count: int) -> None:
+        self.state_title.setText("Ditambahkan ke antrian")
+        self.state_text.setText(f"{item_count} video sudah masuk ke antrian download.")
+
+    def show_error(self, message: str) -> None:
+        self.state_title.setText("Tidak dapat melanjutkan")
+        self.state_text.setText(message)
+
+    def _choose_output_directory(self) -> None:
+        current = self.output_path.text().strip()
+        selected = QFileDialog.getExistingDirectory(
+            self,
+            "Pilih folder download",
+            current,
+        )
+        if selected:
+            self.output_path.setText(selected)
+
+
+def _default_output_directory() -> str:
+    raw_downloads = QStandardPaths.writableLocation(
+        QStandardPaths.StandardLocation.DownloadLocation
+    )
+    base = Path(raw_downloads) if raw_downloads else Path.home() / "Downloads"
+    return str((base / "MeTube-SRT").resolve(strict=False))

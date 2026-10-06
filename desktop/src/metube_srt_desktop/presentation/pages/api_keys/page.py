@@ -3,6 +3,7 @@ from __future__ import annotations
 from PySide6.QtGui import QStandardItem, QStandardItemModel
 from PySide6.QtWidgets import QHBoxLayout, QPushButton, QTableView, QVBoxLayout, QWidget
 
+from metube_srt_desktop.application.dto.gemini_credentials import GeminiKeyProfile
 from metube_srt_desktop.presentation.components.page_header import PageHeader
 from metube_srt_desktop.presentation.theme.tokens import TOKENS
 
@@ -19,19 +20,21 @@ class ApiKeysPage(QWidget):
         layout.addWidget(
             PageHeader(
                 "API Gemini",
-                "Kelola sampai 100 profil API key. Nilai secret tidak pernah ditampilkan penuh.",
+                "Kelola sampai 100 profil API key. Secret disimpan di penyimpanan aman Windows.",
             )
         )
 
         actions = QHBoxLayout()
-        for text, object_name, role in (
-            ("Tambah key", "api_keys.add", "primary"),
-            ("Import", "api_keys.import", "secondary"),
-            ("Tes key aktif", "api_keys.test", "secondary"),
-        ):
-            button = QPushButton(text)
-            button.setObjectName(object_name)
-            button.setProperty("role", role)
+        self.add_button = QPushButton("Tambah key")
+        self.add_button.setObjectName("api_keys.add")
+        self.add_button.setProperty("role", "primary")
+        self.import_button = QPushButton("Import TXT")
+        self.import_button.setObjectName("api_keys.import")
+        self.import_button.setProperty("role", "secondary")
+        self.test_button = QPushButton("Tes key aktif")
+        self.test_button.setObjectName("api_keys.test")
+        self.test_button.setProperty("role", "secondary")
+        for button in (self.add_button, self.import_button, self.test_button):
             actions.addWidget(button)
         actions.addStretch(1)
         layout.addLayout(actions)
@@ -40,17 +43,32 @@ class ApiKeysPage(QWidget):
         self.table.setObjectName("api_keys.table")
         self.table.setAlternatingRowColors(True)
         self.table.verticalHeader().setVisible(False)
-        model = QStandardItemModel(0, 5, self)
-        model.setHorizontalHeaderLabels(
+        self.model = QStandardItemModel(0, 5, self)
+        self.model.setHorizontalHeaderLabels(
             ["Nama", "API key", "Status", "Prioritas", "Terakhir diuji"]
         )
-        fixtures = [
-            ("Gemini Utama", "AIza••••••••7Q", "Aktif", "1", "Baru saja"),
-            ("Cadangan 02", "AIza••••••••K2", "Rate Limit", "2", "2 menit lalu"),
-            ("Cadangan 03", "AIza••••••••P9", "Belum diuji", "3", "—"),
-        ]
-        for row in fixtures:
-            model.appendRow([QStandardItem(value) for value in row])
-        self.table.setModel(model)
+        self.table.setModel(self.model)
         self.table.horizontalHeader().setStretchLastSection(True)
         layout.addWidget(self.table, 1)
+
+    def set_profiles(self, profiles: tuple[GeminiKeyProfile, ...]) -> None:
+        self.model.removeRows(0, self.model.rowCount())
+        for profile in profiles:
+            last_tested = profile.last_tested_at or "—"
+            self.model.appendRow(
+                [
+                    QStandardItem(profile.label),
+                    QStandardItem(_secret_status(profile)),
+                    QStandardItem(profile.status),
+                    QStandardItem(str(profile.priority)),
+                    QStandardItem(last_tested),
+                ]
+            )
+
+
+def _secret_status(profile: GeminiKeyProfile) -> str:
+    if profile.secret_available is True:
+        return "Tersimpan aman"
+    if profile.secret_available is False:
+        return "Tidak tersedia di Windows ini"
+    return "Penyimpanan aman tidak dapat diakses"

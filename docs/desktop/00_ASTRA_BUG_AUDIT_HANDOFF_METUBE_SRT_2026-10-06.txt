@@ -1,0 +1,36 @@
+ASTRA -> SOL BUG AUDIT HANDOFF
+Project: MeTube-SRT Desktop
+Date: 2026-10-06 WIB
+Repository: inoriko920-dev/MeTube-SRT
+PR: #5
+Branch: step10/download-core
+Audit baseline: 9686ca1ca40058f2b527b60ce88a63cab55305dc
+Main at audit: 5b362b96f110bdcfb3a3d22822455a0efd5e26e7
+
+Status at handoff:
+- Audit/planning: PASS.
+- 7/7 deterministic bug scenarios reproduced.
+- Priorities: 4 P1, 3 P2.
+- Baseline desktop tests: 153 passed.
+- Stable release gate: FAIL until fixes and qualification complete.
+- No source patch was present at audit baseline.
+
+Implementation order:
+SOL-00: archive this DOCX + TXT handoff and sync context.
+SOL-01: B03 single runtime ownership per data directory.
+SOL-02: B01 nested channel leaf mapping, then B02 target reservation.
+SOL-03: B04 real output and SRT outcome verification.
+SOL-04: B05 Gemini request/key identity, then B06 HTTPX transport retry.
+SOL-05: B07 complete Cookie redaction + source-of-truth docs.
+SOL-06: deterministic gates, Windows portable build, Windows/live qualification.
+
+Binding decisions:
+- UI_01..UI_20 stay frozen; no redesign.
+- Preserve legacy app/, ui/, Docker/release paths.
+- One scheduler/runtime owns one data directory.
+- Keep application/domain boundaries and current worker protocol.
+- 429 remains cooldown; do not bypass quota by rotating keys.
+- 403 does not automatically invalidate a key.
+- Subtitle policy remains manual/creator -> proven original auto -> none.
+- Optional subtitle failure must not fail an otherwise successful video.
+- Separate commits/tests/evidence per bug package.

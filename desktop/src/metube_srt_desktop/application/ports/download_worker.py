@@ -4,6 +4,11 @@ from collections.abc import Iterable
 from typing import Protocol
 
 from metube_srt_desktop.application.dto.worker_protocol import WorkerEnvelope
+from metube_srt_desktop.domain.jobs import JobSpec
+
+
+class DownloadWorkerError(RuntimeError):
+    """Application-owned failure boundary for parent worker execution."""
 
 
 class DownloadWorkerPort(Protocol):
@@ -16,3 +21,14 @@ class DownloadWorkerPort(Protocol):
     def request_cancel(self) -> None:
         """Request cooperative cancellation without blocking the UI thread."""
         ...
+
+
+class DownloadWorkerFactoryPort(Protocol):
+    """Create one disposable worker boundary for one immutable job attempt."""
+
+    def create(
+        self,
+        job: JobSpec,
+        *,
+        worker_run_id: str,
+    ) -> DownloadWorkerPort: ...

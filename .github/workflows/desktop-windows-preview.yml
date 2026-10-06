@@ -1,0 +1,79 @@
+name: Desktop Windows Preview Build
+
+on:
+  push:
+    branches:
+      - "step10/**"
+    paths:
+      - "desktop/**"
+      - ".github/workflows/desktop-windows-preview.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  build-windows-preview:
+    runs-on: windows-latest
+    timeout-minutes: 30
+    defaults:
+      run:
+        working-directory: desktop
+    env:
+      PYTHONUTF8: "1"
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v10.2.0
+        with:
+          version: "0.12.22"
+          enable-cache: true
+          cache-dependency-glob: "desktop/uv.lock"
+
+      - name: Install Python
+        run: uv python install 3.13.16
+
+      - name: Sync desktop environment
+        run: uv sync --all-groups
+
+      - name: Install preview packager
+        run: uv pip install pyinstaller==6.16.0
+
+      - name: Install Deno
+        uses: denoland/setup-deno@v2
+        with:
+          deno-version: v2.9.7
+
+      - name: Install FFmpeg
+        shell: pwsh
+        run: choco install ffmpeg -y --no-progress
+
+      - name: Resolve portable tool binaries
+        shell: pwsh
+        run: |
+          $deno = (Get-Command deno -ErrorAction Stop).Source
+          $ffmpeg = Get-ChildItem "$env:ChocolateyInstall\lib\ffmpeg*\tools" -Filter ffmpeg.exe -Recurse |
+            Select-Object -First 1 -ExpandProperty FullName
+          $ffprobe = Get-ChildItem "$env:ChocolateyInstall\lib\ffmpeg*\tools" -Filter ffprobe.exe -Recurse |
+            Select-Object -First 1 -ExpandProperty FullName
+          if (-not $ffmpeg -or -not $ffprobe) {
+            throw "Could not resolve Chocolatey FFmpeg payload."
+          }
+          "METUBE_BUILD_DENO=$deno" | Out-File -FilePath $env:GITHUB_ENV -Encoding utf8 -Append
+          "METUBE_BUILD_FFMPEG=$ffmpeg" | Out-File -FilePath $env:GITHUB_ENV -Encoding utf8 -Append
+          "METUBE_BUILD_FFPROBE=$ffprobe" | Out-File -FilePath $env:GITHUB_ENV -Encoding utf8 -Append
+
+      - name: Build portable Windows preview
+        shell: pwsh
+        run: .\packaging\build_windows_preview.ps1
+
+      - name: Upload Windows preview ZIP
+        uses: actions/upload-artifact@v4
+        with:
+          name: MeTube-SRT-Windows-x64-Preview
+          path: desktop/build/windows-preview/MeTube-SRT-Windows-x64-Preview.zip
+          if-no-files-found: error
+          retention-days: 14
