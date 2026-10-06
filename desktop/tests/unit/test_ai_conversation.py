@@ -89,3 +89,18 @@ def test_missing_key_returns_friendly_human_response() -> None:
     assert reply.error_code == "missing_api_key"
     assert "API Gemini belum ditambahkan" in reply.text
     assert "menu API Gemini" in reply.text
+
+
+
+def test_secret_like_message_is_blocked_before_provider_call() -> None:
+    provider = FakeProvider()
+    conversation = HumanlikeAIConversation(provider)
+    secret = "AI" + "za" + ("x" * 30)
+
+    reply = conversation.reply(f"api_key={secret}", AIAgentContext())
+
+    assert reply.provider_ok is False
+    assert reply.error_code == "secret_blocked"
+    assert provider.calls == []
+    assert secret not in " ".join(message.text for message in conversation.history())
+    assert "SECRET DISEMBUNYIKAN" in conversation.history()[0].text

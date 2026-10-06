@@ -9,6 +9,7 @@ from PySide6.QtCore import QObject, QRunnable, QThreadPool, Signal, Slot
 from metube_srt_desktop.application.ai_conversation import HumanlikeAIConversation
 from metube_srt_desktop.application.dto.ai_chat import AIAgentContext, AIConversationReply
 from metube_srt_desktop.application.ports.download_queue import QueueRuntimePort
+from metube_srt_desktop.application.redaction import redact_sensitive_text
 from metube_srt_desktop.domain.jobs import JobState
 from metube_srt_desktop.presentation.components.ai_panel import AIWorkspace
 from metube_srt_desktop.presentation.pages.download.page import DownloadPage
@@ -76,13 +77,23 @@ class AIAgentController(QObject):
         if not text:
             return
 
-        self._workspace.append_user_message(text)
+        redaction = redact_sensitive_text(text)
+        self._workspace.append_user_message(redaction.text)
         self._workspace.clear_prompt()
+
+        if redaction.secret_detected:
+            self._workspace.append_assistant_message(
+                "Pesan itu terlihat mengandung API key, token, atau cookie. "
+                "Saya tidak mengirimkannya ke Gemini. Tambahkan API key lewat menu API Gemini."
+            )
+            self._workspace.set_status("Secret diblokir", success=False)
+            return
+
         self._busy = True
         self._workspace.set_busy(True)
 
         context = self._build_context()
-        task = _AITask(lambda: self._conversation.reply(text, context))
+        task = _AITask(lambda: self._conversation.reply(redaction.text, context))
 
         task.signals.finished.connect(self._task_finished)
         self._tasks.add(task)

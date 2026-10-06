@@ -7,6 +7,7 @@ from metube_srt_desktop.application.dto.ai_chat import (
     AIConversationReply,
 )
 from metube_srt_desktop.application.ports.ai_provider import AIProviderError, AIProviderPort
+from metube_srt_desktop.application.redaction import redact_sensitive_text
 
 _HUMANLIKE_SYSTEM_INSTRUCTION = """
 Kamu adalah AI Agent di aplikasi Windows MeTube-SRT.
@@ -61,7 +62,22 @@ class HumanlikeAIConversation:
         if not clean_text:
             raise ValueError("Pesan AI tidak boleh kosong.")
 
-        user_message = AIChatMessage(AIChatRole.USER, clean_text)
+        redaction = redact_sensitive_text(clean_text)
+        if redaction.secret_detected:
+            fallback = (
+                "Pesan itu terlihat mengandung API key, token, atau cookie. "
+                "Saya tidak mengirimkannya ke Gemini. Tambahkan API key lewat menu API Gemini."
+            )
+            user_message = AIChatMessage(AIChatRole.USER, redaction.text)
+            assistant_message = AIChatMessage(AIChatRole.ASSISTANT, fallback)
+            self._remember(user_message, assistant_message)
+            return AIConversationReply(
+                text=fallback,
+                provider_ok=False,
+                error_code="secret_blocked",
+            )
+
+        user_message = AIChatMessage(AIChatRole.USER, redaction.text)
         provider_messages = (*self._history, _context_message(context), user_message)
 
         try:

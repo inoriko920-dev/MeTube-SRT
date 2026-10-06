@@ -116,3 +116,46 @@ def test_ai_controller_ignores_new_messages_after_window_close(qtbot: QtBot) -> 
         assert provider.calls == 0
     finally:
         queue.shutdown(wait=True)
+
+
+
+def test_ai_panel_redacts_secret_and_does_not_call_provider(qtbot: QtBot) -> None:
+    class CountingProvider(HumanProvider):
+        def __init__(self) -> None:
+            self.calls = 0
+
+        def generate_reply(
+            self,
+            *,
+            system_instruction: str,
+            messages: tuple[AIChatMessage, ...],
+        ) -> str:
+            self.calls += 1
+            return super().generate_reply(
+                system_instruction=system_instruction,
+                messages=messages,
+            )
+
+    provider = CountingProvider()
+    queue = BoundedDownloadQueue(NoopWorkerFactory())
+    conversation = HumanlikeAIConversation(provider)
+    window = MainWindow(
+        queue=queue,
+        resolver=UnusedResolver(),
+        ai_conversation=conversation,
+    )
+    qtbot.addWidget(window)
+    window.show()
+
+    try:
+        secret = "AI" + "za" + ("x" * 30)
+        window.ai_workspace.prompt.setPlainText(f"api_key={secret}")
+        window.ai_workspace.send_button.click()
+
+        transcript = window.ai_workspace.transcript.toPlainText()
+        assert secret not in transcript
+        assert "SECRET DISEMBUNYIKAN" in transcript
+        assert "tidak mengirimkannya ke Gemini" in transcript
+        assert provider.calls == 0
+    finally:
+        queue.shutdown(wait=True)
