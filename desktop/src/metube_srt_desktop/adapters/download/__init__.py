@@ -2,6 +2,7 @@
 
 from metube_srt_desktop.adapters.download.subprocess_worker import (
     SubprocessDownloadWorkerFactory,
+    SubprocessSourceResolver,
     SubprocessWorkerAdapter,
     WorkerAdapterError,
     WorkerProcessError,
@@ -10,6 +11,7 @@ from metube_srt_desktop.adapters.download.subprocess_worker import (
 
 __all__ = [
     "SubprocessDownloadWorkerFactory",
+    "SubprocessSourceResolver",
     "SubprocessWorkerAdapter",
     "WorkerAdapterError",
     "WorkerProcessError",

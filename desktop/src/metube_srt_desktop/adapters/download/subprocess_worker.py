@@ -2,20 +2,27 @@ from __future__ import annotations
 
 import subprocess
 import sys
-from collections.abc import Callable, Iterable, Sequence
+from collections.abc import Callable, Iterable, Mapping, Sequence
 from contextlib import suppress
 from threading import Lock, RLock, Thread
 from typing import Protocol, TextIO, cast
+from uuid import uuid4
 
+from metube_srt_desktop.application.dto.download import ResolvedSource, ResolveRequest
 from metube_srt_desktop.application.dto.worker_protocol import (
     WorkerCommandEnvelope,
     WorkerEnvelope,
     WorkerEventType,
+    resolved_source_from_payload,
 )
 from metube_srt_desktop.application.ports.download_worker import (
     DownloadWorkerError,
     DownloadWorkerFactoryPort,
     DownloadWorkerPort,
+)
+from metube_srt_desktop.application.ports.source_resolver import (
+    SourceResolveError,
+    SourceResolverPort,
 )
 from metube_srt_desktop.domain.jobs import JobSpec
 
@@ -315,3 +322,111 @@ class SubprocessDownloadWorkerFactory(DownloadWorkerFactoryPort):
             cancel_grace_seconds=self._cancel_grace_seconds,
             terminate_grace_seconds=self._terminate_grace_seconds,
         )
+
+
+
+def _new_resolve_id() -> str:
+    return f"resolve-{uuid4().hex}"
+
+
+def _new_resolve_run_id() -> str:
+    return uuid4().hex
+
+
+class SubprocessSourceResolver(SourceResolverPort):
+    """Resolve metadata through the same isolated worker protocol as downloads."""
+
+    def __init__(
+        self,
+        *,
+        worker_argv: Sequence[str] | None = None,
+        process_factory: ProcessFactory | None = None,
+        resolve_id_factory: Callable[[], str] = _new_resolve_id,
+        worker_run_id_factory: Callable[[], str] = _new_resolve_run_id,
+        terminate_grace_seconds: float = 1.0,
+    ) -> None:
+        self._worker_argv = None if worker_argv is None else tuple(worker_argv)
+        self._process_factory = process_factory
+        self._resolve_id_factory = resolve_id_factory
+        self._worker_run_id_factory = worker_run_id_factory
+        self._terminate_grace_seconds = terminate_grace_seconds
+
+    def resolve(self, request: ResolveRequest) -> ResolvedSource:
+        resolve_id = self._resolve_id_factory()
+        worker_run_id = self._worker_run_id_factory()
+        if not resolve_id.strip():
+            raise ValueError("resolve_id_factory returned an empty value")
+        if not worker_run_id.strip():
+            raise ValueError("worker_run_id_factory returned an empty value")
+
+        command = WorkerCommandEnvelope.for_resolve(
+            request,
+            job_id=resolve_id,
+            worker_run_id=worker_run_id,
+        )
+        worker = SubprocessWorkerAdapter(
+            command,
+            worker_argv=self._worker_argv,
+            process_factory=self._process_factory,
+            terminate_grace_seconds=self._terminate_grace_seconds,
+        )
+
+        try:
+            events = tuple(worker.events())
+        except WorkerAdapterError as exc:
+            raise SourceResolveError(
+                "worker_process_failed",
+                "Source resolve worker failed",
+            ) from exc
+
+        if not events:
+            raise SourceResolveError(
+                "worker_protocol_failed",
+                "Source resolve worker returned no terminal event",
+            )
+
+        terminal = events[-1]
+        if terminal.event_type is WorkerEventType.FAILED:
+            raise SourceResolveError(
+                _payload_text(terminal.payload, "error_code") or "resolve_failed",
+                _payload_text(terminal.payload, "message") or "Source resolve failed",
+            )
+        if terminal.event_type is WorkerEventType.CANCELLED:
+            raise SourceResolveError(
+                "resolve_cancelled",
+                "Source resolve was cancelled",
+            )
+        if terminal.event_type is not WorkerEventType.SUCCEEDED:
+            raise SourceResolveError(
+                "worker_protocol_failed",
+                "Source resolve worker ended without success",
+            )
+        if _payload_text(terminal.payload, "mode") != "resolve":
+            raise SourceResolveError(
+                "invalid_resolve_payload",
+                "Source resolve worker returned an invalid result",
+            )
+
+        source_payload = terminal.payload.get("source")
+        if not isinstance(source_payload, Mapping):
+            raise SourceResolveError(
+                "invalid_resolve_payload",
+                "Source resolve worker returned an invalid result",
+            )
+
+        try:
+            return resolved_source_from_payload(
+                cast(Mapping[str, object], source_payload)
+            )
+        except (ValueError, TypeError, KeyError) as exc:
+            raise SourceResolveError(
+                "invalid_resolve_payload",
+                "Source resolve worker returned invalid metadata",
+            ) from exc
+
+
+def _payload_text(payload: Mapping[str, object], key: str) -> str | None:
+    value = payload.get(key)
+    if not isinstance(value, str) or not value.strip():
+        return None
+    return value
