@@ -14,10 +14,10 @@ from metube_srt_desktop.adapters.download import (
     SubprocessDownloadWorkerFactory,
     SubprocessSourceResolver,
 )
+from metube_srt_desktop.adapters.storage import SQLiteQueueStorage
 from metube_srt_desktop.adapters.storage.sqlite_gemini_profiles import (
     SQLiteGeminiProfileRepository,
 )
-from metube_srt_desktop.adapters.storage import SQLiteQueueStorage
 from metube_srt_desktop.application.ai_conversation import HumanlikeAIConversation
 from metube_srt_desktop.application.download_queue import BoundedDownloadQueue
 from metube_srt_desktop.application.gemini_credentials import GeminiCredentialRegistry

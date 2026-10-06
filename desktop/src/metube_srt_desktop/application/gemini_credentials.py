@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from contextlib import suppress
 from datetime import UTC, datetime
 from uuid import uuid4
 
@@ -49,10 +50,8 @@ class GeminiCredentialRegistry:
             self._secrets.set_secret(profile.profile_id, clean_key)
             self._profiles.save_profile(profile)
         except Exception as exc:
-            try:
+            with suppress(Exception):
                 self._secrets.delete_secret(profile.profile_id)
-            except Exception:
-                pass
             if isinstance(exc, (CredentialStorageError, ValueError)):
                 raise
             raise CredentialStorageError("API key tidak dapat disimpan.") from exc

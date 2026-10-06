@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from collections.abc import Callable
+from contextlib import suppress
 from dataclasses import dataclass
 from pathlib import Path
 from typing import cast
@@ -158,9 +159,7 @@ class GeminiCredentialsController(QObject):
             elif result.error.error_code == "network_error":
                 status = "Gangguan jaringan"
                 message = "Gemini belum bisa dihubungi dari koneksi ini."
-        try:
+        with suppress(CredentialStorageError):
             self._registry.mark_active_status(status)
-        except CredentialStorageError:
-            pass
         self.refresh()
         QMessageBox.warning(self._page, "API Gemini", message)
