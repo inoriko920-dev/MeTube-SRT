@@ -49,9 +49,7 @@ def run_desktop(argv: Sequence[str] | None = None) -> int:
 
 
 def _application_data_directory() -> Path:
-    raw_path = QStandardPaths.writableLocation(
-        QStandardPaths.StandardLocation.AppLocalDataLocation
-    )
+    raw_path = QStandardPaths.writableLocation(QStandardPaths.StandardLocation.AppLocalDataLocation)
     if not raw_path:
         raise RuntimeError("Qt did not provide an application data directory")
     return Path(raw_path)

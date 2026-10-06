@@ -161,8 +161,10 @@ def test_enqueue_button_updates_real_queue_table(qtbot: QtBot) -> None:
         window.download_page.enqueue_button.click()
 
         qtbot.waitUntil(
-            lambda: len(queue.snapshots()) == 1
-            and queue.snapshots()[0].state is JobState.SUCCEEDED,
+            lambda: (
+                len(queue.snapshots()) == 1
+                and queue.snapshots()[0].state is JobState.SUCCEEDED
+            ),
             timeout=2000,
         )
         qtbot.waitUntil(lambda: window.queue_page.model.rowCount() == 1, timeout=2000)
