@@ -122,6 +122,7 @@ def _local_app_data_directory() -> Path:
     directory.mkdir(parents=True, exist_ok=True)
     return directory
 
+
 def _ensure_writable_directory(directory: Path) -> bool:
     try:
         directory.mkdir(parents=True, exist_ok=True)
@@ -154,5 +155,3 @@ def configure_portable_tools() -> None:
     path_parts = [part for part in current_path.split(os.pathsep) if part]
     if tools_text.casefold() not in {part.casefold() for part in path_parts}:
         os.environ["PATH"] = os.pathsep.join((tools_text, *path_parts))
-
-

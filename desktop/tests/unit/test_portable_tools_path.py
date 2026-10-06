@@ -111,7 +111,6 @@ def test_configure_portable_tools_exports_explicit_deno_path(
     assert os.environ["METUBE_SRT_DENO_PATH"] == str(deno.resolve())
 
 
-
 def test_resolve_application_data_directory_reports_local_app_data_fallback(
     monkeypatch: pytest.MonkeyPatch,
     tmp_path: Path,
