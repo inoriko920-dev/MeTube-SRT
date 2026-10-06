@@ -58,9 +58,18 @@ class ApiKeysPage(QWidget):
             self.model.appendRow(
                 [
                     QStandardItem(profile.label),
-                    QStandardItem("Tersimpan aman"),
+                    QStandardItem(_secret_status(profile)),
                     QStandardItem(profile.status),
                     QStandardItem(str(profile.priority)),
                     QStandardItem(last_tested),
                 ]
             )
+
+
+
+def _secret_status(profile: GeminiKeyProfile) -> str:
+    if profile.secret_available is True:
+        return "Tersimpan aman"
+    if profile.secret_available is False:
+        return "Tidak tersedia di Windows ini"
+    return "Belum diverifikasi"

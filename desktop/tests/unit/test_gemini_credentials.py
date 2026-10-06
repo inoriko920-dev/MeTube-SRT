@@ -205,3 +205,33 @@ def test_profile_label_cannot_store_secret_in_sqlite_metadata() -> None:
 
     assert profiles.list_profiles() == ()
     assert secrets.items == {}
+
+
+
+def test_list_profiles_marks_orphaned_secret_without_exposing_key() -> None:
+    profiles = MemoryProfiles()
+    secrets = MemorySecrets()
+    registry = GeminiCredentialRegistry(profiles, secrets)
+    valid_key = "fake-key-present-xxxxxxxxxxxxxxxxxxxxxx"
+
+    orphan = GeminiKeyProfile(
+        profile_id="orphan-profile",
+        label="PC Lama",
+        enabled=True,
+        priority=1,
+    )
+    valid = GeminiKeyProfile(
+        profile_id="valid-profile",
+        label="PC Ini",
+        enabled=True,
+        priority=2,
+    )
+    profiles.save_profile(orphan)
+    profiles.save_profile(valid)
+    secrets.set_secret(valid.profile_id, valid_key)
+
+    listed = registry.list_profiles()
+
+    assert listed[0].secret_available is False
+    assert listed[1].secret_available is True
+    assert valid_key not in repr(listed)

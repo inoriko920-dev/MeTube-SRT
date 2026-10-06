@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from contextlib import suppress
+from dataclasses import replace
 from datetime import UTC, datetime
 from hmac import compare_digest
 from uuid import uuid4
@@ -29,7 +30,17 @@ class GeminiCredentialRegistry:
         self._secrets = secrets
 
     def list_profiles(self) -> tuple[GeminiKeyProfile, ...]:
-        return self._profiles.list_profiles()
+        profiles = self._profiles.list_profiles()
+        return tuple(
+            replace(
+                profile,
+                secret_available=(
+                    (secret := self._secrets.get_secret(profile.profile_id)) is not None
+                    and bool(secret.strip())
+                ),
+            )
+            for profile in profiles
+        )
 
     def add_profile(self, label: str, raw_key: str) -> GeminiKeyProfile:
         clean_label = label.strip()
