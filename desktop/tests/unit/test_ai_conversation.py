@@ -166,7 +166,6 @@ def test_conversation_delegates_provider_cancellation() -> None:
     assert provider.cancelled is True
 
 
-
 def test_cookie_header_redacts_every_cookie_pair() -> None:
     sid = "FAKE_SID_VALUE"
     hsid = "FAKE_HSID_VALUE"
@@ -212,9 +211,7 @@ def test_cookie_secret_is_blocked_and_history_contains_no_raw_tail() -> None:
     provider = FakeProvider()
     conversation = HumanlikeAIConversation(provider)
     raw_values = ("FAKE_SID_VALUE", "FAKE_HSID_VALUE", "FAKE_SSID_VALUE")
-    message = (
-        f"Cookie: SID={raw_values[0]}; HSID={raw_values[1]}; SSID={raw_values[2]}"
-    )
+    message = f"Cookie: SID={raw_values[0]}; HSID={raw_values[1]}; SSID={raw_values[2]}"
 
     reply = conversation.reply(message, AIAgentContext())
 
