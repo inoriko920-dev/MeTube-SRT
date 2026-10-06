@@ -133,7 +133,7 @@ def test_resolve_plan_enqueue_persists_per_video_jobs(tmp_path: Path) -> None:
     worker_factory = ImmediateWorkerFactory()
     queue = BoundedDownloadQueue(
         worker_factory,
-        concurrency=1,
+        concurrency=2,
         worker_run_id_factory=iter(("run-a", "run-b")).__next__,
         storage=storage,
     )
