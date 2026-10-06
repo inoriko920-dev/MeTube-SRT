@@ -2,8 +2,8 @@ from __future__ import annotations
 
 import os
 from collections.abc import Callable
-from time import sleep
 from contextlib import suppress
+from time import sleep
 from typing import Protocol, cast
 
 from google import genai
