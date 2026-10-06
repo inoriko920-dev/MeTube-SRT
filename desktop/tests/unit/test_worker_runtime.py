@@ -288,3 +288,16 @@ def test_download_progress_events_are_throttled_without_delaying_cancel(
     ]
     assert len(progress_events) == 2
     assert progress_events[-1].payload["percent"] == 100.0
+
+
+
+def test_runtime_entrypoint_is_after_failure_classifier() -> None:
+    from pathlib import Path
+
+    import metube_srt_desktop.worker.runtime as runtime_module
+
+    source = Path(runtime_module.__file__).read_text(encoding="utf-8")
+    classifier_index = source.index("def _classify_runtime_failure")
+    entrypoint_index = source.index('if __name__ == "__main__"')
+
+    assert classifier_index < entrypoint_index

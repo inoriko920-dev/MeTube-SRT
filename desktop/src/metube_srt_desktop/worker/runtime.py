@@ -160,10 +160,6 @@ def main() -> int:
     return run_worker(sys.stdin, sys.stdout)
 
 
-if __name__ == "__main__":
-    raise SystemExit(main())
-
-
 def _classify_runtime_failure(error: Exception) -> tuple[str, str]:
     text = str(error).casefold()
 
@@ -201,3 +197,8 @@ def _classify_runtime_failure(error: Exception) -> tuple[str, str]:
         return ("network_error", "Koneksi ke YouTube gagal atau terputus")
 
     return ("yt_dlp_error", "yt-dlp operation failed")
+
+
+
+if __name__ == "__main__":
+    raise SystemExit(main())
