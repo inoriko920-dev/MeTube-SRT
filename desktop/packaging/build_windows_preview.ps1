@@ -80,6 +80,7 @@ try {
     Copy-Item $FfmpegPath (Join-Path $ToolsRoot "ffmpeg.exe") -Force
     Copy-Item $FfprobePath (Join-Path $ToolsRoot "ffprobe.exe") -Force
     Copy-Item (Join-Path $RepoRoot "LICENSE") (Join-Path $StageRoot "LICENSE") -Force
+    Set-Content -Path (Join-Path $StageRoot "portable.flag") -Value "portable" -Encoding ASCII
 
     $PreviewReadme = @"
 MeTube-SRT Windows x64 Preview
@@ -97,6 +98,8 @@ Isi portable:
 - tools\deno.exe            : JavaScript runtime untuk extractor YouTube
 - tools\ffmpeg.exe          : media processing
 - tools\ffprobe.exe         : media probe
+- portable.flag             : simpan app.db/metadata di folder data selama writable
+- data\                     : dibuat otomatis saat aplikasi pertama dijalankan
 
 STATUS: PREVIEW BUILD
 - Core/CI sudah hijau.

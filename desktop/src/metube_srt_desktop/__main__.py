@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import argparse
 from collections.abc import Sequence
+from uuid import uuid4
 
 from metube_srt_desktop import __version__
 
@@ -36,7 +37,7 @@ def main(argv: Sequence[str] | None = None) -> int:
     if args.credential_self_check:
         from metube_srt_desktop.adapters.credentials import KeyringGeminiSecretStore
 
-        profile_id = "metube-srt-package-healthcheck"
+        profile_id = f"metube-srt-package-healthcheck-{uuid4().hex}"
         value = "healthcheck-value"
         store = KeyringGeminiSecretStore()
         try:

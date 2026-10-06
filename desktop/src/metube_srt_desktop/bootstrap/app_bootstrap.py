@@ -4,6 +4,7 @@ import os
 import sys
 from collections.abc import Sequence
 from pathlib import Path
+from tempfile import NamedTemporaryFile
 
 from PySide6.QtCore import QStandardPaths
 from PySide6.QtWidgets import QApplication
@@ -29,7 +30,7 @@ def build_runtime_window(
     data_directory: Path | None = None,
 ) -> tuple[MainWindow, BoundedDownloadQueue]:
     configure_portable_tools()
-    directory = data_directory or _application_data_directory()
+    directory = data_directory or application_data_directory()
     database_path = directory / "app.db"
     storage = SQLiteQueueStorage(database_path)
     worker_factory = SubprocessDownloadWorkerFactory()
@@ -74,11 +75,36 @@ def run_desktop(argv: Sequence[str] | None = None) -> int:
     return 0
 
 
-def _application_data_directory() -> Path:
+def application_data_directory() -> Path:
+    configured = os.environ.get("METUBE_SRT_DATA_DIR", "").strip()
+    if configured:
+        directory = Path(configured).expanduser().resolve(strict=False)
+        directory.mkdir(parents=True, exist_ok=True)
+        return directory
+
+    if getattr(sys, "frozen", False):
+        app_directory = Path(sys.executable).resolve().parent
+        if (app_directory / "portable.flag").is_file():
+            portable_data = app_directory / "data"
+            if _ensure_writable_directory(portable_data):
+                return portable_data
+
     raw_path = QStandardPaths.writableLocation(QStandardPaths.StandardLocation.AppLocalDataLocation)
     if not raw_path:
         raise RuntimeError("Qt did not provide an application data directory")
-    return Path(raw_path)
+    directory = Path(raw_path)
+    directory.mkdir(parents=True, exist_ok=True)
+    return directory
+
+
+def _ensure_writable_directory(directory: Path) -> bool:
+    try:
+        directory.mkdir(parents=True, exist_ok=True)
+        with NamedTemporaryFile(prefix=".metube-write-", dir=directory, delete=True):
+            pass
+    except OSError:
+        return False
+    return True
 
 
 def configure_portable_tools() -> None:
