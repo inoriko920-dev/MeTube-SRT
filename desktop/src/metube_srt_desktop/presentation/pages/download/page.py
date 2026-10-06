@@ -1,5 +1,8 @@
 from __future__ import annotations
 
+from pathlib import Path
+
+from PySide6.QtCore import QStandardPaths
 from PySide6.QtWidgets import (
     QCheckBox,
     QComboBox,
@@ -71,7 +74,7 @@ class DownloadPage(QWidget):
         output_row = QHBoxLayout()
         output_label = QLabel("Simpan ke")
         output_label.setProperty("muted", True)
-        self.output_path = QLineEdit(r"Downloads\MeTube-SRT")
+        self.output_path = QLineEdit(_default_output_directory())
         self.output_path.setObjectName("download.output_path")
         self.browse_button = QPushButton("Pilih folder")
         self.browse_button.setProperty("role", "secondary")
@@ -151,3 +154,10 @@ class DownloadPage(QWidget):
         )
         if selected:
             self.output_path.setText(selected)
+
+
+
+def _default_output_directory() -> str:
+    raw_downloads = QStandardPaths.writableLocation(QStandardPaths.StandardLocation.DownloadLocation)
+    base = Path(raw_downloads) if raw_downloads else Path.home() / "Downloads"
+    return str((base / "MeTube-SRT").resolve(strict=False))

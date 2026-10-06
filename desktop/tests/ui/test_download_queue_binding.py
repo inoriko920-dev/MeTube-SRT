@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from collections.abc import Iterable
+from pathlib import Path
 from threading import Event
 
 from pytestqt.qtbot import QtBot
@@ -209,5 +210,20 @@ def test_queue_cancel_action_routes_to_application_queue(qtbot: QtBot) -> None:
         )
 
         assert worker.cancelled.is_set()
+    finally:
+        queue.shutdown(wait=True)
+
+
+
+def test_download_page_default_output_directory_is_absolute(qtbot: QtBot) -> None:
+    resolver = FakeResolver()
+    queue = BoundedDownloadQueue(ImmediateWorkerFactory())
+    window = MainWindow(resolver=resolver, queue=queue)
+    qtbot.addWidget(window)
+
+    try:
+        output = Path(window.download_page.output_path.text())
+        assert output.is_absolute()
+        assert output.name == "MeTube-SRT"
     finally:
         queue.shutdown(wait=True)
