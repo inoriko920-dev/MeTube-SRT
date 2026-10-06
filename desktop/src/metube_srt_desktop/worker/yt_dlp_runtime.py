@@ -326,7 +326,11 @@ def _download_selected_subtitle(
         if not outputs:
             emit(
                 WorkerEventType.WARNING,
-                {"message": ("Subtitle tidak tersedia sebagai SRT; video tetap disimpan tanpa subtitle")},
+                {
+                    "message": (
+                        "Subtitle tidak tersedia sebagai SRT; video tetap disimpan tanpa subtitle"
+                    )
+                },
             )
         return outputs
     except DownloadCancellationRequested:
