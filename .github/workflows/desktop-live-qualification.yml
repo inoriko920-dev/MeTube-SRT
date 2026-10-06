@@ -44,6 +44,13 @@ jobs:
       - name: Sync desktop environment
         run: uv sync --all-groups
 
+      - name: Install FFmpeg for qualification
+        shell: pwsh
+        run: |
+          if (-not (Get-Command ffmpeg -ErrorAction SilentlyContinue)) {
+            choco install ffmpeg -y --no-progress
+          }
+
       - name: Verify external qualification tools
         shell: pwsh
         run: |

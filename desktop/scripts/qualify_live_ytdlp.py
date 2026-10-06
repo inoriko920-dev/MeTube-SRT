@@ -27,9 +27,7 @@ from metube_srt_desktop.domain.jobs import JobSpec, QualityPreset, SourceKind
 from metube_srt_desktop.domain.subtitles import SubtitleKind
 
 DEFAULT_SINGLE_URL = "https://www.youtube.com/watch?v=BaW_jenozKc"
-DEFAULT_PLAYLIST_URL = (
-    "https://www.youtube.com/playlist?list=PLt5yu3-wZAlSLRHmI1qNm0wjyVNWw1pCU"
-)
+DEFAULT_PLAYLIST_URL = "https://www.youtube.com/playlist?list=PLt5yu3-wZAlSLRHmI1qNm0wjyVNWw1pCU"
 DEFAULT_CHANNEL_URL = "https://www.youtube.com/@coletdjnz/videos"
 DEFAULT_CANCEL_URL = "https://www.youtube.com/watch?v=YE7VzlLtp-4"
 DEFAULT_FAILURE_URL = "https://www.youtube.com/watch?v=yZIXLfi8CZQ"
@@ -55,9 +53,7 @@ def _timed_resolve(
 
 def _assert_kind(source: ResolvedSource, expected: SourceKind) -> None:
     if source.kind is not expected:
-        raise QualificationError(
-            f"expected {expected.value} source, received {source.kind.value}"
-        )
+        raise QualificationError(f"expected {expected.value} source, received {source.kind.value}")
     if not source.items:
         raise QualificationError("resolved source did not contain any video items")
 
@@ -111,9 +107,7 @@ def _run_small_video_with_srt(
     files = tuple(path for path in output_directory.rglob("*") if path.is_file())
     srt_files = tuple(path for path in files if path.suffix.lower() == ".srt")
     media_files = tuple(
-        path
-        for path in files
-        if path.suffix.lower() not in {".srt", ".part", ".ytdl", ".json"}
+        path for path in files if path.suffix.lower() not in {".srt", ".part", ".ytdl", ".json"}
     )
     if not srt_files:
         raise QualificationError("video+SRT qualification produced no .srt sidecar")
