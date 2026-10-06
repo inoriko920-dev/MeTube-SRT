@@ -155,7 +155,9 @@ def test_resolve_plan_enqueue_persists_per_video_jobs(tmp_path: Path) -> None:
 
     assert resolver.requests == [ResolveRequest(source.source_url)]
     assert [job.job_id for job in result.jobs] == ["job-a", "job-b"]
-    assert [job.selected_subtitle.language_code for job in result.jobs if job.selected_subtitle] == [
+    assert [
+        job.selected_subtitle.language_code for job in result.jobs if job.selected_subtitle
+    ] == [
         "id",
         "en-orig",
     ]
