@@ -4,7 +4,7 @@ import pytest
 
 from metube_srt_desktop.application.dto.download import ResolveRequest
 from metube_srt_desktop.domain.jobs import SourceKind
-from metube_srt_desktop.worker.yt_dlp_resolver import map_resolved_source
+from metube_srt_desktop.worker.yt_dlp_resolver import is_collection_url, map_resolved_source
 
 
 def _valid_item(video_id: str = "abc") -> dict[str, object]:
@@ -63,3 +63,15 @@ def test_single_video_still_rejects_incomplete_metadata() -> None:
 
     with pytest.raises(ValueError, match="absolute webpage URL"):
         map_resolved_source(request, raw)
+
+
+
+def test_watch_url_with_playlist_context_remains_single_video() -> None:
+    assert (
+        is_collection_url(
+            "https://www.youtube.com/watch?v=abc123&list=PL1234567890&index=2"
+        )
+        is False
+    )
+    assert is_collection_url("https://youtu.be/abc123?list=PL1234567890") is False
+    assert is_collection_url("https://www.youtube.com/playlist?list=PL1234567890") is True

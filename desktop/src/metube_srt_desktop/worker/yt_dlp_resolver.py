@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from collections.abc import Mapping, Sequence
 from typing import cast
-from urllib.parse import parse_qs, urlsplit
+from urllib.parse import urlsplit
 
 from metube_srt_desktop.application.dto.download import (
     ResolvedItem,
@@ -85,8 +85,8 @@ def is_collection_url(source_url: str) -> bool:
 
 def _classify_collection_url(source_url: str) -> SourceKind:
     parsed = urlsplit(source_url)
-    query = parse_qs(parsed.query)
-    if "list" in query or parsed.path.rstrip("/") == "/playlist":
+    path = parsed.path.rstrip("/")
+    if path == "/playlist":
         return SourceKind.PLAYLIST
     if parsed.path.startswith(_CHANNEL_PREFIXES):
         return SourceKind.CHANNEL

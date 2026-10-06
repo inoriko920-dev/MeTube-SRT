@@ -58,8 +58,12 @@ def resolve_source_live(
     """Run metadata extraction through yt-dlp without downloading media."""
 
     factory = ydl_factory or _default_ydl_factory
+    collection = is_collection_url(request.source_url)
     with factory(
-        build_resolve_options(tolerate_unavailable_entries=is_collection_url(request.source_url))
+        build_resolve_options(
+            tolerate_unavailable_entries=collection,
+            force_single_video=not collection,
+        )
     ) as ydl:
         raw_info = ydl.extract_info(request.source_url, download=False)
 

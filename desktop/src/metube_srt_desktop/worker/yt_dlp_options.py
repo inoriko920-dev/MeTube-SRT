@@ -12,13 +12,17 @@ _RESOLUTION_SORT: dict[QualityPreset, str] = {
 }
 
 
-def build_resolve_options(*, tolerate_unavailable_entries: bool = False) -> dict[str, object]:
+def build_resolve_options(
+    *,
+    tolerate_unavailable_entries: bool = False,
+    force_single_video: bool = False,
+) -> dict[str, object]:
     """Return metadata-only yt-dlp options for the isolated worker.
 
     Auto-translated YouTube subtitles are intentionally skipped at extraction time.
     """
 
-    return {
+    options: dict[str, object] = {
         **_javascript_runtime_options(),
         "quiet": True,
         "no_warnings": True,
@@ -27,6 +31,9 @@ def build_resolve_options(*, tolerate_unavailable_entries: bool = False) -> dict
         "ignoreerrors": tolerate_unavailable_entries,
         "extractor_args": {"youtube": {"skip": ["translated_subs"]}},
     }
+    if force_single_video:
+        options["noplaylist"] = True
+    return options
 
 
 def build_download_options(job: JobSpec) -> dict[str, object]:

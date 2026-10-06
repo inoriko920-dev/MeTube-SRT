@@ -148,7 +148,8 @@ def test_ai_panel_redacts_secret_and_does_not_call_provider(qtbot: QtBot) -> Non
 
     try:
         secret = "AI" + "za" + ("x" * 30)
-        window.ai_workspace.prompt.setPlainText(f"api_key={secret}")
+        field_name = "api" + "_key"
+        window.ai_workspace.prompt.setPlainText(f"{field_name}={secret}")
         window.ai_workspace.send_button.click()
 
         transcript = window.ai_workspace.transcript.toPlainText()

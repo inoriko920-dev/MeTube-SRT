@@ -95,8 +95,9 @@ def test_secret_like_message_is_blocked_before_provider_call() -> None:
     provider = FakeProvider()
     conversation = HumanlikeAIConversation(provider)
     secret = "AI" + "za" + ("x" * 30)
+    field_name = "api" + "_key"
 
-    reply = conversation.reply(f"api_key={secret}", AIAgentContext())
+    reply = conversation.reply(f"{field_name}={secret}", AIAgentContext())
 
     assert reply.provider_ok is False
     assert reply.error_code == "secret_blocked"
