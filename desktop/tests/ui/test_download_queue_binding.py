@@ -264,6 +264,11 @@ def test_window_close_requests_resolver_cancellation(qtbot: QtBot) -> None:
     try:
         window.close()
         assert resolver.cancelled is True
+
+        window.download_page.url_input.setText(resolver.source.source_url)
+        assert window.download_controller is not None
+        window.download_controller.resolve_current_url()
+        assert resolver.requests == []
     finally:
         queue.shutdown(wait=True)
 

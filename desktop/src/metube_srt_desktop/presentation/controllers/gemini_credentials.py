@@ -56,6 +56,7 @@ class GeminiCredentialsController(QObject):
         self._provider = provider
         self._thread_pool = thread_pool or QThreadPool.globalInstance()
         self._tasks: set[_CheckTask] = set()
+        self._closed = False
 
         self._page.add_button.clicked.connect(self.add_key)
         self._page.import_button.clicked.connect(self.import_keys)
@@ -64,6 +65,8 @@ class GeminiCredentialsController(QObject):
 
     @Slot()
     def refresh(self) -> None:
+        if self._closed:
+            return
         try:
             self._page.set_profiles(self._registry.list_profiles())
         except CredentialStorageError:
@@ -71,6 +74,8 @@ class GeminiCredentialsController(QObject):
 
     @Slot()
     def add_key(self) -> None:
+        if self._closed:
+            return
         label, ok = QInputDialog.getText(
             self._page,
             "Tambah API Gemini",
@@ -95,6 +100,8 @@ class GeminiCredentialsController(QObject):
 
     @Slot()
     def import_keys(self) -> None:
+        if self._closed:
+            return
         filename, _ = QFileDialog.getOpenFileName(
             self._page,
             "Import API Gemini dari TXT",
@@ -118,6 +125,8 @@ class GeminiCredentialsController(QObject):
 
     @Slot()
     def test_active_key(self) -> None:
+        if self._closed:
+            return
         try:
             active_profile = self._registry.active_profile()
         except CredentialStorageError:
@@ -140,6 +149,8 @@ class GeminiCredentialsController(QObject):
 
         def finished(raw: object) -> None:
             try:
+                if self._closed:
+                    return
                 self._handle_check(cast(_CheckResult, raw))
             finally:
                 self._tasks.discard(task)
@@ -181,3 +192,7 @@ class GeminiCredentialsController(QObject):
             self._registry.mark_active_status(status)
         self.refresh()
         QMessageBox.warning(self._page, "API Gemini", message)
+
+
+    def shutdown(self) -> None:
+        self._closed = True

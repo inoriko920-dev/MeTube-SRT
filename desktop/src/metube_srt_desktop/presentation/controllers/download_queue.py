@@ -93,6 +93,7 @@ class DownloadQueueController(QObject):
         self._resolved_url: str | None = None
         self._title_by_job_id: dict[str, str] = {}
         self._busy = False
+        self._closed = False
         self._tasks: set[_ApplicationTask] = set()
 
         self._download_page.resolve_button.clicked.connect(self.resolve_current_url)
@@ -107,7 +108,7 @@ class DownloadQueueController(QObject):
 
     @Slot()
     def resolve_current_url(self) -> None:
-        if self._busy:
+        if self._closed or self._busy:
             return
 
         raw_url = self._download_page.url_input.text().strip()
@@ -126,7 +127,7 @@ class DownloadQueueController(QObject):
 
     @Slot()
     def enqueue_current_url(self) -> None:
-        if self._busy:
+        if self._closed or self._busy:
             return
 
         raw_url = self._download_page.url_input.text().strip()
@@ -163,6 +164,8 @@ class DownloadQueueController(QObject):
 
     @Slot()
     def refresh_queue(self) -> None:
+        if self._closed:
+            return
         self._queue.drain_updates()
         snapshots = self._queue.snapshots()
         specs = {job.job_id: job for job in self._queue.job_specs()}
@@ -189,10 +192,14 @@ class DownloadQueueController(QObject):
         call: Callable[[], object],
         handler: Callable[[_AsyncResult], None],
     ) -> None:
+        if self._closed:
+            return
         task = _ApplicationTask(call)
 
         def finished(raw: object) -> None:
             try:
+                if self._closed:
+                    return
                 handler(cast(_AsyncResult, raw))
             finally:
                 self._tasks.discard(task)
@@ -257,6 +264,9 @@ class DownloadQueueController(QObject):
         return job_id
 
     def shutdown(self) -> None:
+        if self._closed:
+            return
+        self._closed = True
         self._poll_timer.stop()
         if isinstance(self._resolver, SourceResolveCancellationPort):
             self._resolver.cancel_current()

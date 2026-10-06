@@ -76,3 +76,44 @@ def test_ai_panel_sends_message_and_renders_human_reply(qtbot: QtBot) -> None:
         assert window.ai_workspace.status_label.text() == "Siap"
     finally:
         queue.shutdown(wait=True)
+
+
+
+def test_ai_controller_ignores_new_messages_after_window_close(qtbot: QtBot) -> None:
+    class CountingProvider(HumanProvider):
+        def __init__(self) -> None:
+            self.calls = 0
+
+        def generate_reply(
+            self,
+            *,
+            system_instruction: str,
+            messages: tuple[AIChatMessage, ...],
+        ) -> str:
+            self.calls += 1
+            return super().generate_reply(
+                system_instruction=system_instruction,
+                messages=messages,
+            )
+
+    provider = CountingProvider()
+    queue = BoundedDownloadQueue(NoopWorkerFactory())
+    conversation = HumanlikeAIConversation(provider)
+    window = MainWindow(
+        queue=queue,
+        resolver=UnusedResolver(),
+        ai_conversation=conversation,
+    )
+    qtbot.addWidget(window)
+    window.show()
+
+    try:
+        window.close()
+        window.ai_workspace.prompt.setPlainText("jangan kirim setelah close")
+        assert window.ai_controller is not None
+        window.ai_controller.send_message()
+
+        qtbot.wait(50)
+        assert provider.calls == 0
+    finally:
+        queue.shutdown(wait=True)

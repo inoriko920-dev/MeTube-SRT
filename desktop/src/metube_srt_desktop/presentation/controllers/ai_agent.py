@@ -60,6 +60,7 @@ class AIAgentController(QObject):
         self._thread_pool = thread_pool or QThreadPool.globalInstance()
         self._tasks: set[_AITask] = set()
         self._busy = False
+        self._closed = False
 
         self._workspace.send_button.clicked.connect(self.send_message)
         self._workspace.append_assistant_message(
@@ -69,7 +70,7 @@ class AIAgentController(QObject):
 
     @Slot()
     def send_message(self) -> None:
-        if self._busy:
+        if self._closed or self._busy:
             return
         text = self._workspace.prompt.toPlainText().strip()
         if not text:
@@ -85,6 +86,8 @@ class AIAgentController(QObject):
 
         def finished(raw: object) -> None:
             try:
+                if self._closed:
+                    return
                 self._handle_result(cast(_AIResult, raw))
             finally:
                 self._tasks.discard(task)
@@ -130,3 +133,7 @@ class AIAgentController(QObject):
             queue_waiting=sum(item.state is JobState.QUEUED for item in snapshots),
             queue_failed=sum(item.state in failed_states for item in snapshots),
         )
+
+
+    def shutdown(self) -> None:
+        self._closed = True

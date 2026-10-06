@@ -132,6 +132,10 @@ class MainWindow(QMainWindow):
     def closeEvent(self, event: QCloseEvent) -> None:
         if self.download_controller is not None:
             self.download_controller.shutdown()
+        if self.ai_controller is not None:
+            self.ai_controller.shutdown()
+        if self.credentials_controller is not None:
+            self.credentials_controller.shutdown()
         super().closeEvent(event)
 
     def navigate(self, raw_page_id: str) -> None:
