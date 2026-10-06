@@ -31,16 +31,16 @@ class GeminiCredentialRegistry:
 
     def list_profiles(self) -> tuple[GeminiKeyProfile, ...]:
         profiles = self._profiles.list_profiles()
-        return tuple(
-            replace(
-                profile,
-                secret_available=(
-                    (secret := self._secrets.get_secret(profile.profile_id)) is not None
-                    and bool(secret.strip())
-                ),
-            )
-            for profile in profiles
-        )
+        enriched: list[GeminiKeyProfile] = []
+        for profile in profiles:
+            try:
+                secret = self._secrets.get_secret(profile.profile_id)
+            except CredentialStorageError:
+                available: bool | None = None
+            else:
+                available = secret is not None and bool(secret.strip())
+            enriched.append(replace(profile, secret_available=available))
+        return tuple(enriched)
 
     def add_profile(self, label: str, raw_key: str) -> GeminiKeyProfile:
         clean_label = label.strip()

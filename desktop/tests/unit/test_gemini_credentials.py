@@ -234,3 +234,28 @@ def test_list_profiles_marks_orphaned_secret_without_exposing_key() -> None:
     assert listed[0].secret_available is False
     assert listed[1].secret_available is True
     assert valid_key not in repr(listed)
+
+
+
+class UnavailableSecrets(MemorySecrets):
+    def get_secret(self, profile_id: str) -> str | None:
+        raise CredentialStorageError("simulated credential backend outage")
+
+
+def test_list_profiles_survives_credential_backend_outage() -> None:
+    profiles = MemoryProfiles()
+    secrets = UnavailableSecrets()
+    registry = GeminiCredentialRegistry(profiles, secrets)
+    profile = GeminiKeyProfile(
+        profile_id="profile-visible",
+        label="Tetap terlihat",
+        enabled=True,
+        priority=1,
+    )
+    profiles.save_profile(profile)
+
+    listed = registry.list_profiles()
+
+    assert len(listed) == 1
+    assert listed[0].label == "Tetap terlihat"
+    assert listed[0].secret_available is None
