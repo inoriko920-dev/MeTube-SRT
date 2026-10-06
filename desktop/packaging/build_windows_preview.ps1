@@ -47,6 +47,7 @@ try {
         --workpath (Join-Path $WorkRoot "worker") `
         --specpath $SpecRoot `
         --collect-all yt_dlp `
+        --collect-all yt_dlp_ejs `
         --collect-all curl_cffi `
         --collect-all certifi `
         "src\metube_srt_desktop\worker\__main__.py"
