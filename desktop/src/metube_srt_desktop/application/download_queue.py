@@ -1,11 +1,15 @@
 from __future__ import annotations
 
+import os
+import sys
 from collections import deque
 from collections.abc import Callable, Iterable
 from concurrent.futures import ThreadPoolExecutor
 from dataclasses import dataclass, replace
+from pathlib import Path
 from queue import Empty, SimpleQueue
 from threading import RLock
+from urllib.parse import parse_qsl, urlencode, urlsplit, urlunsplit
 from uuid import uuid4
 
 from metube_srt_desktop.application.dto.job_runtime import JobRuntimeSnapshot
@@ -44,6 +48,33 @@ def _new_worker_run_id() -> str:
     return uuid4().hex
 
 
+def _download_target_key(job: JobSpec) -> tuple[str, str]:
+    parsed = urlsplit(job.source_url)
+    hostname = (parsed.hostname or "").rstrip(".").casefold()
+    port = parsed.port
+    if port is not None and not (
+        (parsed.scheme.casefold() == "https" and port == 443)
+        or (parsed.scheme.casefold() == "http" and port == 80)
+    ):
+        hostname = f"{hostname}:{port}"
+
+    query = urlencode(sorted(parse_qsl(parsed.query, keep_blank_values=True)))
+    canonical_url = urlunsplit(
+        (
+            parsed.scheme.casefold(),
+            hostname,
+            parsed.path or "/",
+            query,
+            "",
+        )
+    )
+
+    directory = str(Path(job.output_directory).expanduser().resolve(strict=False))
+    if sys.platform == "win32":
+        directory = os.path.normcase(directory).casefold()
+    return canonical_url, directory
+
+
 class BoundedDownloadQueue:
     """Application-owned FIFO scheduler with optional durable persistence."""
 
@@ -66,6 +97,7 @@ class BoundedDownloadQueue:
         self._pending: deque[str] = deque()
         self._entries: dict[str, _QueueEntry] = {}
         self._active: set[str] = set()
+        self._target_reservations: dict[tuple[str, str], str] = {}
         self._updates: SimpleQueue[JobRuntimeSnapshot] = SimpleQueue()
         self._next_position = 0
         self._closed = False
@@ -102,6 +134,15 @@ class BoundedDownloadQueue:
 
             with queue._lock:
                 for record in recovered:
+                    if not is_terminal_job_state(record.snapshot.state):
+                        target_key = _download_target_key(record.job)
+                        owner = queue._target_reservations.get(target_key)
+                        if owner is not None and owner != record.job.job_id:
+                            raise ValueError(
+                                "persisted queue contains duplicate active download target"
+                            )
+                        queue._target_reservations[target_key] = record.job.job_id
+
                     entry = _QueueEntry(
                         position=record.position,
                         job=record.job,
@@ -163,6 +204,16 @@ class BoundedDownloadQueue:
             if duplicates:
                 raise ValueError(f"job_id already exists: {duplicates[0]}")
 
+            target_keys = [_download_target_key(job) for job in batch]
+            if len(set(target_keys)) != len(target_keys):
+                raise ValueError("batch contains duplicate active download target")
+            for target_key in target_keys:
+                owner = self._target_reservations.get(target_key)
+                if owner is not None:
+                    raise ValueError(
+                        f"download target already active or queued by job_id: {owner}"
+                    )
+
             staged: list[_QueueEntry] = []
             next_position = self._next_position
             for job in batch:
@@ -186,7 +237,8 @@ class BoundedDownloadQueue:
 
             self._persist_entries_locked(staged)
 
-            for entry in staged:
+            for entry, target_key in zip(staged, target_keys, strict=True):
+                self._target_reservations[target_key] = entry.job.job_id
                 self._entries[entry.job.job_id] = entry
                 self._pending.append(entry.job.job_id)
                 self._updates.put(entry.snapshot)
@@ -208,6 +260,7 @@ class BoundedDownloadQueue:
                     state=transition_job_state(entry.snapshot.state, JobState.CANCELLED),
                 )
                 self._commit_snapshot_locked(entry, candidate)
+                self._release_target_reservation_locked(entry)
                 return entry.snapshot
 
         snapshot = run.cancel()
@@ -285,6 +338,7 @@ class BoundedDownloadQueue:
                 )
                 try:
                     self._commit_snapshot_locked(entry, candidate)
+                    self._release_target_reservation_locked(entry)
                 except QueueStorageError:
                     self._mark_persistence_failure_locked(entry)
                     return
@@ -339,6 +393,8 @@ class BoundedDownloadQueue:
                         self._mark_persistence_failure_locked(entry)
 
                 self._active.discard(job_id)
+                entry.run = None
+                self._release_target_reservation_locked(entry)
                 self._dispatch_available_locked()
 
     def _accept_snapshot_locked(
@@ -407,6 +463,11 @@ class BoundedDownloadQueue:
                 error_message="Durable queue storage became unavailable",
             )
             self._updates.put(entry.snapshot)
+
+    def _release_target_reservation_locked(self, entry: _QueueEntry) -> None:
+        target_key = _download_target_key(entry.job)
+        if self._target_reservations.get(target_key) == entry.job.job_id:
+            del self._target_reservations[target_key]
 
     def _require_entry(self, job_id: str) -> _QueueEntry:
         try:

@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from collections.abc import Iterable
-from threading import Condition, Event, Lock
+from threading import Condition, Event, Lock\nfrom time import monotonic, sleep
 
 import pytest
 
@@ -305,3 +305,103 @@ def test_shutdown_continues_when_one_active_cancel_fails() -> None:
     assert factory.workers[1].cancel_calls == 1
 
     factory.workers[0].release.set()
+
+
+
+def _same_target_job(
+    index: int,
+    *,
+    output_directory: str = "Downloads",
+    quality: QualityPreset = QualityPreset.BEST,
+) -> JobSpec:
+    return JobSpec(
+        job_id=f"same-{index}",
+        source_url="https://www.youtube.com/watch?v=shared-video",
+        output_directory=output_directory,
+        quality=quality,
+        selected_subtitle=None,
+    )
+
+
+def _wait_terminal(queue: BoundedDownloadQueue, job_id: str) -> JobState:
+    deadline = monotonic() + 2.0
+    while monotonic() < deadline:
+        state = queue.snapshot(job_id).state
+        if state in {
+            JobState.SUCCEEDED,
+            JobState.FAILED,
+            JobState.CANCELLED,
+            JobState.INTERRUPTED,
+        }:
+            return state
+        sleep(0.01)
+    raise AssertionError(f"job did not become terminal: {job_id}")
+
+
+def test_duplicate_active_download_target_is_rejected_atomically() -> None:
+    factory = BlockingWorkerFactory()
+    queue = BoundedDownloadQueue(factory, concurrency=2)
+
+    queue.enqueue(_same_target_job(1))
+    assert factory.wait_created(1)
+    assert factory.workers["same-1"].started.wait(2.0)
+
+    with pytest.raises(ValueError, match="download target already active or queued"):
+        queue.enqueue(_same_target_job(2, quality=QualityPreset.P720))
+
+    assert [job.job_id for job in queue.job_specs()] == ["same-1"]
+    assert factory.created == ["same-1"]
+
+    factory.workers["same-1"].release()
+    queue.shutdown(wait=True)
+
+
+def test_same_video_in_different_output_directories_is_allowed() -> None:
+    factory = BlockingWorkerFactory()
+    queue = BoundedDownloadQueue(factory, concurrency=2)
+
+    queue.enqueue_many(
+        (
+            _same_target_job(1, output_directory="Downloads/one"),
+            _same_target_job(2, output_directory="Downloads/two"),
+        )
+    )
+
+    assert factory.wait_created(2)
+    assert set(factory.created) == {"same-1", "same-2"}
+    factory.workers["same-1"].release()
+    factory.workers["same-2"].release()
+    queue.shutdown(wait=True)
+
+
+def test_target_reservation_is_released_only_after_worker_finishes() -> None:
+    factory = BlockingWorkerFactory()
+    queue = BoundedDownloadQueue(factory, concurrency=1)
+
+    queue.enqueue(_same_target_job(1))
+    assert factory.wait_created(1)
+    worker = factory.workers["same-1"]
+    assert worker.started.wait(2.0)
+
+    with pytest.raises(ValueError, match="download target already active or queued"):
+        queue.enqueue(_same_target_job(2))
+
+    worker.release()
+    assert _wait_terminal(queue, "same-1") is JobState.SUCCEEDED
+
+    queue.enqueue(_same_target_job(2))
+    assert factory.wait_created(2)
+    factory.workers["same-2"].release()
+    queue.shutdown(wait=True)
+
+
+def test_duplicate_target_inside_batch_is_rejected_without_partial_admission() -> None:
+    factory = BlockingWorkerFactory()
+    queue = BoundedDownloadQueue(factory)
+
+    with pytest.raises(ValueError, match="batch contains duplicate active download target"):
+        queue.enqueue_many((_same_target_job(1), _same_target_job(2)))
+
+    assert queue.snapshots() == ()
+    assert factory.created == []
+    queue.shutdown(wait=True)

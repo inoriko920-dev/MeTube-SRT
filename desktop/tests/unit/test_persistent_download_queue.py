@@ -141,3 +141,46 @@ def test_restore_interrupts_old_active_job_and_dispatches_only_old_queued_job(
     assert persisted[0].snapshot.worker_run_id == "old-active"
     assert persisted[1].snapshot.worker_run_id == "new-queued-run"
     assert persisted[1].snapshot.state is JobState.SUCCEEDED
+
+
+
+def test_restore_rejects_duplicate_queued_targets_before_dispatch(tmp_path: Path) -> None:
+    storage = SQLiteQueueStorage(tmp_path / "app.db")
+    first = make_job(10)
+    second = JobSpec(
+        job_id="job-11",
+        source_url=first.source_url,
+        output_directory=first.output_directory,
+        quality=QualityPreset.P720,
+        selected_subtitle=None,
+    )
+    storage.save_entries(
+        (
+            PersistedQueueEntry(
+                position=0,
+                job=first,
+                snapshot=JobRuntimeSnapshot(
+                    job_id=first.job_id,
+                    worker_run_id="old-1",
+                    state=JobState.QUEUED,
+                ),
+            ),
+            PersistedQueueEntry(
+                position=1,
+                job=second,
+                snapshot=JobRuntimeSnapshot(
+                    job_id=second.job_id,
+                    worker_run_id="old-2",
+                    state=JobState.QUEUED,
+                ),
+            ),
+        )
+    )
+    factory = CapturingFactory()
+
+    import pytest
+
+    with pytest.raises(ValueError, match="duplicate active download target"):
+        BoundedDownloadQueue.restore(factory, storage, concurrency=1)
+
+    assert factory.created == []
