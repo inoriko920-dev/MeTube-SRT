@@ -231,7 +231,6 @@ def _optional_non_negative_int(payload: Mapping[str, object], key: str) -> int |
     return value
 
 
-
 def _worker_error_message(error: DownloadWorkerError, fallback: str) -> str:
     message = str(error).strip()
     return message or fallback
