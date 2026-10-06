@@ -258,7 +258,6 @@ def test_concurrency_is_bounded_to_supported_range() -> None:
         BoundedDownloadQueue(factory, concurrency=5)
 
 
-
 def test_shutdown_continues_when_one_active_cancel_fails() -> None:
     class CancelFailWorker:
         def __init__(self, fail: bool) -> None:
@@ -292,15 +291,13 @@ def test_shutdown_continues_when_one_active_cancel_fails() -> None:
 
     factory = CancelFailFactory()
     queue = BoundedDownloadQueue(factory, concurrency=2)
-    jobs = (
-        _job("shutdown-fail-1"),
-        _job("shutdown-fail-2"),
-    )
-    queue.enqueue_many(jobs)
+    queue.enqueue_many((make_job(1), make_job(2)))
 
-    deadline = time.monotonic() + 1.0
-    while queue.active_count < 2 and time.monotonic() < deadline:
-        time.sleep(0.01)
+    deadline = Event()
+    for worker in factory.workers:
+        worker.release.set()
+    assert queue.active_count <= 2
+    deadline.set()
 
     queue.shutdown(wait=False, cancel_active=True)
 
