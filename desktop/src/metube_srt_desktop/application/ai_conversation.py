@@ -110,9 +110,9 @@ class HumanlikeAIConversation:
 
 
 def _context_message(context: AIAgentContext) -> AIChatMessage:
-    url = context.current_url or "belum ada URL"
+    url = _redacted_context_value(context.current_url, "belum ada URL")
     quality = context.quality or "belum dipilih"
-    output = context.output_directory or "belum dipilih"
+    output = _redacted_context_value(context.output_directory, "belum dipilih")
     srt = "aktif" if context.subtitle_requested else "tidak aktif"
     text = (
         "[Konteks aplikasi saat ini — gunakan sebagai konteks, jangan dibacakan mentah]\n"
@@ -124,6 +124,12 @@ def _context_message(context: AIAgentContext) -> AIChatMessage:
         f"gagal/terputus={context.queue_failed}"
     )
     return AIChatMessage(AIChatRole.USER, text)
+
+
+def _redacted_context_value(value: str | None, fallback: str) -> str:
+    if value is None or not value.strip():
+        return fallback
+    return redact_sensitive_text(value).text
 
 
 def _friendly_provider_failure(error_code: str) -> str:

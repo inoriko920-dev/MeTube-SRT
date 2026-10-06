@@ -104,3 +104,24 @@ def test_secret_like_message_is_blocked_before_provider_call() -> None:
     assert provider.calls == []
     assert secret not in " ".join(message.text for message in conversation.history())
     assert "SECRET DISEMBUNYIKAN" in conversation.history()[0].text
+
+
+
+def test_sensitive_download_context_is_redacted_before_provider_call() -> None:
+    provider = FakeProvider()
+    conversation = HumanlikeAIConversation(provider)
+    username = "user"
+    password = "pass" + "-value"
+    context = AIAgentContext(
+        current_url=f"https://{username}:{password}@www.youtube.com/watch?v=abc",
+        output_directory="D:/Video",
+    )
+
+    reply = conversation.reply("kenapa belum mulai?", context)
+
+    assert reply.provider_ok is True
+    _, messages = provider.calls[0]
+    serialized = "\n".join(message.text for message in messages)
+    assert username not in serialized
+    assert password not in serialized
+    assert "SECRET DISEMBUNYIKAN" in serialized

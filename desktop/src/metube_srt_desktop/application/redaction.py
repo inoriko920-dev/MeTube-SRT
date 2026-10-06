@@ -5,10 +5,19 @@ from dataclasses import dataclass
 
 _REDACTED = "[SECRET DISEMBUNYIKAN]"
 
-_PATTERNS = (
-    re.compile(r"AIza[0-9A-Za-z_-]{20,}"),
-    re.compile(r"(?i)\bBearer\s+[A-Za-z0-9._~+\-/]{12,}=*"),
-    re.compile(r"(?i)\b(api[_ -]?key|token|authorization|cookie)\s*[:=]\s*([^\s,;]+)"),
+_API_KEY_PATTERN = re.compile(r"AIza[0-9A-Za-z_-]{20,}")
+_BEARER_PATTERN = re.compile(r"(?i)\bBearer\s+[A-Za-z0-9._~+\-/]{12,}=*")
+_BASIC_AUTH_URL_PATTERN = re.compile(
+    r"(?i)\b(https?://)([^/\s:@]+):([^@\s/]+)@"
+)
+_NAMED_SECRET_PATTERN = re.compile(
+    r"(?i)\b("
+    r"api[_ -]?key|"
+    r"access[_ -]?token|"
+    r"refresh[_ -]?token|"
+    r"client[_ -]?secret|"
+    r"token|authorization|cookie|password|passwd|secret"
+    r")\s*[:=]\s*([^\s,;]+)"
 )
 
 
@@ -24,13 +33,22 @@ def redact_sensitive_text(value: str) -> RedactionResult:
     redacted = value
     detected = False
 
-    for pattern in _PATTERNS:
-        if not pattern.search(redacted):
-            continue
-        detected = True
-        if pattern is _PATTERNS[2]:
-            redacted = pattern.sub(lambda match: f"{match.group(1)}={_REDACTED}", redacted)
-        else:
-            redacted = pattern.sub(_REDACTED, redacted)
+    redacted, count = _API_KEY_PATTERN.subn(_REDACTED, redacted)
+    detected = detected or count > 0
+
+    redacted, count = _BEARER_PATTERN.subn(_REDACTED, redacted)
+    detected = detected or count > 0
+
+    redacted, count = _BASIC_AUTH_URL_PATTERN.subn(
+        lambda match: f"{match.group(1)}{_REDACTED}@",
+        redacted,
+    )
+    detected = detected or count > 0
+
+    redacted, count = _NAMED_SECRET_PATTERN.subn(
+        lambda match: f"{match.group(1)}={_REDACTED}",
+        redacted,
+    )
+    detected = detected or count > 0
 
     return RedactionResult(text=redacted, secret_detected=detected)
