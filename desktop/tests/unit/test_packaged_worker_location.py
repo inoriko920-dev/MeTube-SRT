@@ -30,3 +30,22 @@ def testdefault_worker_argv_uses_sibling_worker_when_frozen(
 
     expected = Path(r"C:\Portable\MeTube-SRT.exe").resolve().with_name("MeTube-SRT-Worker.exe")
     assert default_worker_argv() == (str(expected),)
+
+
+
+def test_default_worker_argv_prefers_packaged_worker_directory(
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path,
+) -> None:
+    app = tmp_path / "MeTube-SRT.exe"
+    app.write_bytes(b"")
+    worker_dir = tmp_path / "worker"
+    worker_dir.mkdir()
+    worker = worker_dir / "MeTube-SRT-Worker.exe"
+    worker.write_bytes(b"")
+
+    monkeypatch.delenv("METUBE_SRT_WORKER_EXE", raising=False)
+    monkeypatch.setattr(sys, "frozen", True, raising=False)
+    monkeypatch.setattr(sys, "executable", str(app))
+
+    assert default_worker_argv() == (str(worker.resolve()),)

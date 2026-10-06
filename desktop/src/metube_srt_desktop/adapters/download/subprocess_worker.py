@@ -69,8 +69,11 @@ def default_worker_argv() -> tuple[str, ...]:
         return (override,)
 
     if getattr(sys, "frozen", False):
-        worker = Path(sys.executable).resolve().with_name("MeTube-SRT-Worker.exe")
-        return (str(worker),)
+        app_directory = Path(sys.executable).resolve().parent
+        worker = app_directory / "worker" / "MeTube-SRT-Worker.exe"
+        if worker.is_file():
+            return (str(worker),)
+        return (str(app_directory / "MeTube-SRT-Worker.exe"),)
 
     return (sys.executable, "-m", "metube_srt_desktop.worker")
 

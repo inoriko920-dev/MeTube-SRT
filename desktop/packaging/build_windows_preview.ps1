@@ -41,7 +41,7 @@ try {
     New-Item -ItemType Directory -Force -Path $OutputRoot, $WorkRoot, $SpecRoot | Out-Null
 
     Write-Host "=== Build worker EXE ==="
-    & uv run pyinstaller --noconfirm --clean --onefile --console `
+    & uv run pyinstaller --noconfirm --clean --onedir --console `
         --name "MeTube-SRT-Worker" `
         --distpath $WorkerDist `
         --workpath (Join-Path $WorkRoot "worker") `
@@ -63,7 +63,8 @@ try {
     Assert-LastExitCode "Desktop PyInstaller build"
 
     Copy-Item (Join-Path $MainDist "MeTube-SRT") $StageRoot -Recurse -Force
-    Copy-Item (Join-Path $WorkerDist "MeTube-SRT-Worker.exe") $StageRoot -Force
+    $WorkerStage = Join-Path $StageRoot "worker"
+    Copy-Item (Join-Path $WorkerDist "MeTube-SRT-Worker") $WorkerStage -Recurse -Force
 
     $ToolsRoot = Join-Path $StageRoot "tools"
     New-Item -ItemType Directory -Force -Path $ToolsRoot | Out-Null
@@ -89,7 +90,7 @@ Cara menjalankan:
 
 Isi portable:
 - MeTube-SRT.exe            : aplikasi Windows
-- MeTube-SRT-Worker.exe     : worker yt-dlp terisolasi
+- worker\MeTube-SRT-Worker.exe : worker yt-dlp terisolasi (runtime folder stabil)
 - tools\deno.exe            : JavaScript runtime untuk extractor YouTube
 - tools\ffmpeg.exe          : media processing
 - tools\ffprobe.exe         : media probe
@@ -118,7 +119,7 @@ Jangan memindahkan hanya file EXE. Pertahankan seluruh isi folder portable.
 
     Write-Host "=== Smoke packaged worker ==="
     $CancelCommand = '{"schema_version":1,"command_type":"cancel","job_id":"package-smoke","worker_run_id":"package-smoke-run","payload":{}}'
-    $WorkerOutput = @($CancelCommand | & (Join-Path $StageRoot "MeTube-SRT-Worker.exe"))
+    $WorkerOutput = @($CancelCommand | & (Join-Path $StageRoot "worker\MeTube-SRT-Worker.exe"))
     Assert-LastExitCode "Packaged worker smoke"
     $WorkerText = $WorkerOutput -join "`n"
     if ($WorkerText -notmatch '"event_type":"ready"' -or $WorkerText -notmatch '"event_type":"cancelled"') {

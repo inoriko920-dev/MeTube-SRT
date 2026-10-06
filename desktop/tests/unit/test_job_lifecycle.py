@@ -158,6 +158,7 @@ def test_worker_boundary_failure_becomes_interrupted_not_failed() -> None:
 
     assert final.state is JobState.INTERRUPTED
     assert final.error_code == "worker_process_failed"
+    assert final.error_message == "worker boundary failed"
 
 
 def test_worker_stream_ending_without_terminal_event_becomes_interrupted() -> None:
@@ -171,6 +172,7 @@ def test_worker_stream_ending_without_terminal_event_becomes_interrupted() -> No
 
     assert final.state is JobState.INTERRUPTED
     assert final.error_code == "worker_stream_ended"
+    assert final.error_message == "Download worker stream ended before a terminal event"
 
 
 def test_cancel_sets_cancelling_then_accepts_cancelled_terminal_event() -> None:
@@ -199,6 +201,7 @@ def test_cancel_boundary_failure_becomes_interrupted() -> None:
 
     assert snapshot.state is JobState.INTERRUPTED
     assert snapshot.error_code == "worker_cancel_failed"
+    assert snapshot.error_message == "cancel boundary failed"
 
 
 def test_updates_are_single_consumer() -> None:

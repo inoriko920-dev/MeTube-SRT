@@ -171,7 +171,7 @@ class DownloadQueueController(QObject):
                 job_id=snapshot.job_id,
                 title=self._display_title(snapshot.job_id, spec),
                 kind="Video",
-                status=_state_label(snapshot.state),
+                status=_status_label(snapshot),
                 progress=_progress_label(snapshot),
                 srt=_subtitle_label(spec),
             )
@@ -255,8 +255,8 @@ class DownloadQueueController(QObject):
         self._download_page.set_busy(busy)
 
 
-def _state_label(state: JobState) -> str:
-    return {
+def _status_label(snapshot: JobRuntimeSnapshot) -> str:
+    label = {
         JobState.QUEUED: "Menunggu",
         JobState.RESOLVING: "Memeriksa",
         JobState.RUNNING: "Mengunduh",
@@ -266,7 +266,13 @@ def _state_label(state: JobState) -> str:
         JobState.FAILED: "Gagal",
         JobState.CANCELLED: "Dibatalkan",
         JobState.INTERRUPTED: "Terputus",
-    }[state]
+    }[snapshot.state]
+
+    if snapshot.state in {JobState.FAILED, JobState.INTERRUPTED}:
+        detail = snapshot.error_message or snapshot.error_code
+        if detail:
+            return f"{label}: {detail}"
+    return label
 
 
 def _progress_label(snapshot: JobRuntimeSnapshot) -> str:

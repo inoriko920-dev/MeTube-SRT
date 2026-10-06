@@ -57,8 +57,11 @@ class DownloadJobRun:
 
         try:
             self._worker.request_cancel()
-        except DownloadWorkerError:
-            return self._mark_interrupted("worker_cancel_failed")
+        except DownloadWorkerError as exc:
+            return self._mark_interrupted(
+                "worker_cancel_failed",
+                _worker_error_message(exc, "Download worker cancellation failed"),
+            )
 
         return self.snapshot
 
@@ -78,12 +81,18 @@ class DownloadJobRun:
                 if is_terminal_job_state(snapshot.state):
                     terminal_seen = True
                     break
-        except DownloadWorkerError:
+        except DownloadWorkerError as exc:
             terminal_seen = True
-            yield self._mark_interrupted("worker_process_failed")
+            yield self._mark_interrupted(
+                "worker_process_failed",
+                _worker_error_message(exc, "Download worker process failed"),
+            )
 
         if not terminal_seen:
-            yield self._mark_interrupted("worker_stream_ended")
+            yield self._mark_interrupted(
+                "worker_stream_ended",
+                "Download worker stream ended before a terminal event",
+            )
 
     def _is_current_event(self, event: WorkerEnvelope) -> bool:
         snapshot = self.snapshot
@@ -118,7 +127,11 @@ class DownloadJobRun:
             self._snapshot = replace(current, **changes)
             return self._snapshot
 
-    def _mark_interrupted(self, error_code: str) -> JobRuntimeSnapshot:
+    def _mark_interrupted(
+        self,
+        error_code: str,
+        error_message: str = "Download worker was interrupted",
+    ) -> JobRuntimeSnapshot:
         with self._lock:
             current = self._snapshot
             if is_terminal_job_state(current.state):
@@ -127,7 +140,7 @@ class DownloadJobRun:
                 current,
                 state=transition_job_state(current.state, JobState.INTERRUPTED),
                 error_code=error_code,
-                error_message="Download worker was interrupted",
+                error_message=error_message,
             )
             return self._snapshot
 
@@ -216,3 +229,9 @@ def _optional_non_negative_int(payload: Mapping[str, object], key: str) -> int |
     if not isinstance(value, int) or isinstance(value, bool) or value < 0:
         return None
     return value
+
+
+
+def _worker_error_message(error: DownloadWorkerError, fallback: str) -> str:
+    message = str(error).strip()
+    return message or fallback
