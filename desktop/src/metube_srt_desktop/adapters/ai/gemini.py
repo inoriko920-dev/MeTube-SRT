@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import os
 from collections.abc import Callable
+from typing import Protocol, cast
 
 from google import genai
 from google.genai import errors, types
@@ -10,6 +11,16 @@ from metube_srt_desktop.application.dto.ai_chat import AIChatMessage, AIChatRole
 from metube_srt_desktop.application.ports.ai_provider import AIProviderError, AIProviderPort
 
 _DEFAULT_MODEL = "gemini-2.5-flash"
+
+
+class _GenerateModels(Protocol):
+    def generate_content(
+        self,
+        *,
+        model: str,
+        contents: object,
+        config: types.GenerateContentConfig | None = None,
+    ) -> types.GenerateContentResponse: ...
 
 
 class GeminiAdapter(AIProviderPort):
@@ -40,7 +51,8 @@ class GeminiAdapter(AIProviderPort):
         contents = [_to_content(message) for message in messages]
         try:
             client = genai.Client(api_key=api_key)
-            response = client.models.generate_content(
+            models = cast(_GenerateModels, client.models)
+            response = models.generate_content(
                 model=self._model,
                 contents=contents,
                 config=types.GenerateContentConfig(
@@ -71,7 +83,8 @@ class GeminiAdapter(AIProviderPort):
         api_key = self._require_api_key()
         try:
             client = genai.Client(api_key=api_key)
-            response = client.models.generate_content(
+            models = cast(_GenerateModels, client.models)
+            response = models.generate_content(
                 model=self._model,
                 contents="Balas hanya dengan kata OK.",
                 config=types.GenerateContentConfig(
