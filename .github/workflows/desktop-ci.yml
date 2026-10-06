@@ -6,7 +6,6 @@ on:
       - main
       - "step08/**"
       - "step09/**"
-      - "step10/**"
     paths:
       - "desktop/**"
       - "docs/desktop/**"
