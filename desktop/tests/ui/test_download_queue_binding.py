@@ -214,7 +214,6 @@ def test_queue_cancel_action_routes_to_application_queue(qtbot: QtBot) -> None:
         queue.shutdown(wait=True)
 
 
-
 def test_download_page_default_output_directory_is_absolute(qtbot: QtBot) -> None:
     resolver = FakeResolver()
     queue = BoundedDownloadQueue(ImmediateWorkerFactory())

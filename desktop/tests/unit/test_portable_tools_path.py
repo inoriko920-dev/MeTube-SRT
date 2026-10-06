@@ -39,7 +39,6 @@ def test_configure_portable_tools_ignores_missing_directory(
     assert os.environ["PATH"] == "existing"
 
 
-
 def test_application_data_directory_uses_explicit_override(
     monkeypatch: pytest.MonkeyPatch,
     tmp_path: Path,

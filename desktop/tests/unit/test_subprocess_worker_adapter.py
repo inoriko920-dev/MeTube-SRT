@@ -231,7 +231,6 @@ def test_real_child_process_cancel_command_contract() -> None:
     ]
 
 
-
 class SlowCleanExitProcess(FakeProcess):
     def __init__(self, output: str, *, minimum_clean_timeout: float) -> None:
         super().__init__(output)

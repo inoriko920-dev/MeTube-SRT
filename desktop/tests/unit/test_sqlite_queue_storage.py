@@ -83,7 +83,6 @@ def test_sqlite_queue_upsert_updates_last_health_state(tmp_path: Path) -> None:
     assert storage.load_entries() == (updated,)
 
 
-
 def test_sqlite_queue_migrates_v1_database_with_display_title_column(tmp_path: Path) -> None:
     database = tmp_path / "app.db"
     connection = sqlite3.connect(database)
@@ -129,8 +128,7 @@ def test_sqlite_queue_migrates_v1_database_with_display_title_column(tmp_path: P
     connection = sqlite3.connect(database)
     try:
         columns = {
-            str(row[1])
-            for row in connection.execute("PRAGMA table_info(queue_jobs)").fetchall()
+            str(row[1]) for row in connection.execute("PRAGMA table_info(queue_jobs)").fetchall()
         }
         version = connection.execute(
             "SELECT value FROM app_meta WHERE key = 'queue_schema_version'"

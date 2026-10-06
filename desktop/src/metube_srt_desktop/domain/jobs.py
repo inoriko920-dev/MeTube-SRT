@@ -20,8 +20,7 @@ def validate_youtube_url(source_url: str) -> None:
 
     hostname = (parsed.hostname or "").rstrip(".").casefold()
     if not any(
-        hostname == allowed or hostname.endswith(f".{allowed}")
-        for allowed in _YOUTUBE_HOSTS
+        hostname == allowed or hostname.endswith(f".{allowed}") for allowed in _YOUTUBE_HOSTS
     ):
         raise ValueError("source_url must be a YouTube URL")
 

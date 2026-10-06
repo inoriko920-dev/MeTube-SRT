@@ -156,8 +156,9 @@ class DownloadPage(QWidget):
             self.output_path.setText(selected)
 
 
-
 def _default_output_directory() -> str:
-    raw_downloads = QStandardPaths.writableLocation(QStandardPaths.StandardLocation.DownloadLocation)
+    raw_downloads = QStandardPaths.writableLocation(
+        QStandardPaths.StandardLocation.DownloadLocation
+    )
     base = Path(raw_downloads) if raw_downloads else Path.home() / "Downloads"
     return str((base / "MeTube-SRT").resolve(strict=False))
