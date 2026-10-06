@@ -13,6 +13,7 @@ from metube_srt_desktop.application.ports.ai_provider import AIProviderError, AI
 from metube_srt_desktop.application.ports.credentials import CredentialStorageError
 
 _DEFAULT_MODEL = "gemini-2.5-flash"
+_GEMINI_REQUEST_TIMEOUT_MS = 30_000
 
 
 class _GenerateModels(Protocol):
@@ -80,7 +81,10 @@ class GeminiAdapter(AIProviderPort):
     ) -> str:
         client: genai.Client | None = None
         try:
-            client = genai.Client(api_key=api_key)
+            client = genai.Client(
+                api_key=api_key,
+                http_options=types.HttpOptions(timeout=_GEMINI_REQUEST_TIMEOUT_MS),
+            )
             models = cast(_GenerateModels, client.models)
             response = models.generate_content(
                 model=self._model,
@@ -142,7 +146,10 @@ class GeminiAdapter(AIProviderPort):
         api_key = self._require_api_key()
         client: genai.Client | None = None
         try:
-            client = genai.Client(api_key=api_key)
+            client = genai.Client(
+                api_key=api_key,
+                http_options=types.HttpOptions(timeout=_GEMINI_REQUEST_TIMEOUT_MS),
+            )
             models = cast(_GenerateModels, client.models)
             response = models.generate_content(
                 model=self._model,

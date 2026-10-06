@@ -30,9 +30,11 @@ class FakeModels:
 
 class FakeClient:
     calls: ClassVar[list[str]] = []
+    timeouts: ClassVar[list[object]] = []
 
-    def __init__(self, *, api_key: str) -> None:
+    def __init__(self, *, api_key: str, http_options: object | None = None) -> None:
         self.models = FakeModels(api_key, type(self).calls)
+        type(self).timeouts.append(getattr(http_options, "timeout", None))
 
     def close(self) -> None:
         return
@@ -44,6 +46,7 @@ def test_generate_reply_fails_over_only_after_invalid_key(
     monkeypatch.setattr(gemini_module.errors, "APIError", FakeAPIError)
     monkeypatch.setattr(gemini_module.genai, "Client", FakeClient)
     FakeClient.calls.clear()
+    FakeClient.timeouts.clear()
 
     keys = ["bad-key", "good-key"]
 
@@ -65,6 +68,7 @@ def test_generate_reply_fails_over_only_after_invalid_key(
 
     assert reply == "Siap, key kedua berhasil."
     assert FakeClient.calls == ["bad-key", "good-key"]
+    assert FakeClient.timeouts == [30_000, 30_000]
     assert keys == ["good-key"]
 
 
@@ -77,12 +81,14 @@ def test_generate_reply_does_not_rotate_rate_limit(
             raise FakeAPIError(429)
 
     class RateLimitedClient(FakeClient):
-        def __init__(self, *, api_key: str) -> None:
+        def __init__(self, *, api_key: str, http_options: object | None = None) -> None:
             self.models = RateLimitedModels(api_key, type(self).calls)
+            type(self).timeouts.append(getattr(http_options, "timeout", None))
 
     monkeypatch.setattr(gemini_module.errors, "APIError", FakeAPIError)
     monkeypatch.setattr(gemini_module.genai, "Client", RateLimitedClient)
     RateLimitedClient.calls.clear()
+    RateLimitedClient.timeouts.clear()
     rotated = False
 
     def mark_invalid() -> None:
@@ -100,3 +106,4 @@ def test_generate_reply_does_not_rotate_rate_limit(
     assert getattr(caught.value, "error_code", None) == "rate_limited"
     assert rotated is False
     assert RateLimitedClient.calls == ["rate-limited-key"]
+    assert RateLimitedClient.timeouts == [30_000]
