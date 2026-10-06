@@ -21,7 +21,9 @@ def main(argv: Sequence[str] | None = None) -> int:
     parser = build_parser()
     args, qt_args = parser.parse_known_args(list(argv) if argv is not None else None)
     if args.self_check:
-        print("MeTube-SRT Desktop foundation: OK")
+        from metube_srt_desktop.bootstrap import app_bootstrap  # noqa: F401
+
+        print("MeTube-SRT Desktop runtime imports: OK")
         return 0
 
     from metube_srt_desktop.bootstrap.app_bootstrap import run_desktop

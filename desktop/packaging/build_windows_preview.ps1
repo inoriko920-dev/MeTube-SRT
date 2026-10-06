@@ -59,6 +59,9 @@ try {
         --distpath $MainDist `
         --workpath (Join-Path $WorkRoot "main") `
         --specpath $SpecRoot `
+        --collect-all google.genai `
+        --collect-all keyring `
+        --collect-submodules keyring.backends `
         "src\metube_srt_desktop\__main__.py"
     Assert-LastExitCode "Desktop PyInstaller build"
 
@@ -99,7 +102,8 @@ STATUS: PREVIEW BUILD
 - Core/CI sudah hijau.
 - Live YouTube dari GitHub datacenter diblokir anti-bot, sehingga build ini
   sengaja diberikan untuk pengujian langsung pada jaringan Windows biasa.
-- Gemini Agent belum diaktifkan.
+- AI Agent Gemini aktif setelah Anda menambahkan API key di menu API Gemini.
+- API key disimpan melalui penyimpanan credential Windows, bukan di app.db/log.
 - Jika YouTube meminta login/anti-bot, itu akan terlihat sebagai error resolve/download.
 
 Jangan memindahkan hanya file EXE. Pertahankan seluruh isi folder portable.
