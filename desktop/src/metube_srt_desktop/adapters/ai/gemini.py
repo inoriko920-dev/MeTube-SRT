@@ -202,8 +202,13 @@ def _map_api_error(error: errors.APIError) -> AIProviderError:
         code = int(error.code)
     except (TypeError, ValueError):
         code = 0
-    if code in {401, 403}:
+    if code == 401:
         return AIProviderError("invalid_api_key", "API key Gemini ditolak.")
+    if code == 403:
+        return AIProviderError(
+            "permission_denied",
+            "Gemini menolak izin untuk model atau project ini.",
+        )
     if code == 429:
         return AIProviderError("rate_limited", "Batas pemakaian Gemini tercapai.")
     if code in {408, 500, 502, 503, 504}:

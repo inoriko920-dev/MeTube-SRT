@@ -147,13 +147,13 @@ def test_ai_panel_redacts_secret_and_does_not_call_provider(qtbot: QtBot) -> Non
     window.show()
 
     try:
-        secret = "AI" + "za" + ("x" * 30)
+        credential_value = "AI" + "za" + ("x" * 30)
         field_name = "api" + "_key"
-        window.ai_workspace.prompt.setPlainText(f"{field_name}={secret}")
+        window.ai_workspace.prompt.setPlainText(f"{field_name}={credential_value}")
         window.ai_workspace.send_button.click()
 
         transcript = window.ai_workspace.transcript.toPlainText()
-        assert secret not in transcript
+        assert credential_value not in transcript
         assert "SECRET DISEMBUNYIKAN" in transcript
         assert "tidak mengirimkannya ke Gemini" in transcript
         assert provider.calls == 0

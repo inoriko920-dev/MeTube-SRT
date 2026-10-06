@@ -143,6 +143,11 @@ def _friendly_provider_failure(error_code: str) -> str:
             "API key Gemini yang aktif ditolak. Coba cek atau ganti key di menu API Gemini, "
             "lalu saya coba lagi."
         )
+    if error_code == "permission_denied":
+        return (
+            "Gemini menolak izin untuk model atau project API ini. "
+            "Key tidak saya tandai rusak; cek akses Gemini di project tersebut."
+        )
     if error_code == "rate_limited":
         return (
             "Gemini sedang kena batas pemakaian. Tunggu sebentar lalu coba lagi; "

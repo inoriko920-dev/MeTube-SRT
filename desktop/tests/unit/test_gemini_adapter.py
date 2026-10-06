@@ -107,3 +107,43 @@ def test_generate_reply_does_not_rotate_rate_limit(
     assert rotated is False
     assert RateLimitedClient.calls == ["rate-limited-key"]
     assert RateLimitedClient.timeouts == [30_000]
+
+
+
+def test_generate_reply_does_not_invalidate_key_on_permission_denied(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    class PermissionDeniedModels(FakeModels):
+        def generate_content(self, **kwargs: object) -> object:
+            self._calls.append(self._credential)
+            raise FakeAPIError(403)
+
+    class PermissionDeniedClient(FakeClient):
+        def __init__(self, *, api_key: str, http_options: object | None = None) -> None:
+            self.models = PermissionDeniedModels(api_key, type(self).calls)
+            type(self).timeouts.append(getattr(http_options, "timeout", None))
+
+    monkeypatch.setattr(gemini_module.errors, "APIError", FakeAPIError)
+    monkeypatch.setattr(gemini_module.genai, "Client", PermissionDeniedClient)
+    PermissionDeniedClient.calls.clear()
+    PermissionDeniedClient.timeouts.clear()
+    invalidated = False
+
+    def mark_invalid() -> None:
+        nonlocal invalidated
+        invalidated = True
+
+    adapter = GeminiAdapter(
+        lambda: "permission-denied-key",
+        invalid_key_handler=mark_invalid,
+    )
+
+    with pytest.raises(Exception) as caught:
+        adapter.generate_reply(
+            system_instruction="Balas singkat.",
+            messages=(AIChatMessage(AIChatRole.USER, "halo"),),
+        )
+
+    assert getattr(caught.value, "error_code", None) == "permission_denied"
+    assert invalidated is False
+    assert PermissionDeniedClient.calls == ["permission-denied-key"]

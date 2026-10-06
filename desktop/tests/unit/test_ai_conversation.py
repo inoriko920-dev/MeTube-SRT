@@ -95,15 +95,17 @@ def test_missing_key_returns_friendly_human_response() -> None:
 def test_secret_like_message_is_blocked_before_provider_call() -> None:
     provider = FakeProvider()
     conversation = HumanlikeAIConversation(provider)
-    secret = "AI" + "za" + ("x" * 30)
+    credential_value = "AI" + "za" + ("x" * 30)
     field_name = "api" + "_key"
 
-    reply = conversation.reply(f"{field_name}={secret}", AIAgentContext())
+    reply = conversation.reply(f"{field_name}={credential_value}", AIAgentContext())
 
     assert reply.provider_ok is False
     assert reply.error_code == "secret_blocked"
     assert provider.calls == []
-    assert secret not in " ".join(message.text for message in conversation.history())
+    assert credential_value not in " ".join(
+        message.text for message in conversation.history()
+    )
     assert "SECRET DISEMBUNYIKAN" in conversation.history()[0].text
 
 
