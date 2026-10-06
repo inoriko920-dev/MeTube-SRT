@@ -11,7 +11,7 @@ import metube_srt_desktop.bootstrap.app_bootstrap as app_bootstrap
 from metube_srt_desktop.bootstrap.app_bootstrap import (
     application_data_directory,
     configure_portable_tools,
-    portable_fallback_directory,
+    resolve_application_data_directory,
 )
 
 
@@ -112,7 +112,7 @@ def test_configure_portable_tools_exports_explicit_deno_path(
 
 
 
-def test_portable_fallback_directory_reports_local_app_data(
+def test_resolve_application_data_directory_reports_local_app_data_fallback(
     monkeypatch: pytest.MonkeyPatch,
     tmp_path: Path,
 ) -> None:
@@ -123,19 +123,23 @@ def test_portable_fallback_directory_reports_local_app_data(
     monkeypatch.delenv("METUBE_SRT_DATA_DIR", raising=False)
     monkeypatch.setattr(sys, "frozen", True, raising=False)
     monkeypatch.setattr(sys, "executable", str(app))
-    monkeypatch.setattr(
-        "metube_srt_desktop.bootstrap.app_bootstrap._ensure_writable_directory",
-        lambda directory: False,
-    )
-    monkeypatch.setattr(
-        "metube_srt_desktop.bootstrap.app_bootstrap.QStandardPaths.writableLocation",
-        lambda location: str(fallback),
-    )
 
-    assert portable_fallback_directory() == fallback
+    def not_writable(directory: Path) -> bool:
+        return False
+
+    def fallback_location(location: QStandardPaths.StandardLocation) -> str:
+        return str(fallback)
+
+    monkeypatch.setattr(app_bootstrap, "_ensure_writable_directory", not_writable)
+    monkeypatch.setattr(QStandardPaths, "writableLocation", fallback_location)
+
+    directory, reported_fallback = resolve_application_data_directory()
+
+    assert directory == fallback
+    assert reported_fallback == fallback
 
 
-def test_portable_fallback_directory_is_none_when_portable_data_is_writable(
+def test_resolve_application_data_directory_has_no_fallback_when_writable(
     monkeypatch: pytest.MonkeyPatch,
     tmp_path: Path,
 ) -> None:
@@ -145,9 +149,13 @@ def test_portable_fallback_directory_is_none_when_portable_data_is_writable(
     monkeypatch.delenv("METUBE_SRT_DATA_DIR", raising=False)
     monkeypatch.setattr(sys, "frozen", True, raising=False)
     monkeypatch.setattr(sys, "executable", str(app))
-    monkeypatch.setattr(
-        "metube_srt_desktop.bootstrap.app_bootstrap._ensure_writable_directory",
-        lambda directory: True,
-    )
 
-    assert portable_fallback_directory() is None
+    def writable(directory: Path) -> bool:
+        return True
+
+    monkeypatch.setattr(app_bootstrap, "_ensure_writable_directory", writable)
+
+    directory, reported_fallback = resolve_application_data_directory()
+
+    assert directory == tmp_path / "data"
+    assert reported_fallback is None

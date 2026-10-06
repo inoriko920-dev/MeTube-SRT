@@ -69,11 +69,10 @@ def run_desktop(argv: Sequence[str] | None = None) -> int:
 
     app.setApplicationName("MeTube-SRT Desktop")
     app.setOrganizationName("MeTube-SRT")
-    window, queue = build_runtime_window()
+    data_directory, fallback_directory = resolve_application_data_directory()
+    window, queue = build_runtime_window(data_directory=data_directory)
     app.aboutToQuit.connect(lambda: queue.shutdown(wait=True, cancel_active=True))
     window.show()
-
-    fallback_directory = portable_fallback_directory()
     if fallback_directory is not None:
         QMessageBox.warning(
             window,
@@ -91,26 +90,37 @@ def run_desktop(argv: Sequence[str] | None = None) -> int:
 
 
 def application_data_directory() -> Path:
+    directory, _ = resolve_application_data_directory()
+    return directory
+
+
+def resolve_application_data_directory() -> tuple[Path, Path | None]:
     configured = os.environ.get("METUBE_SRT_DATA_DIR", "").strip()
     if configured:
         directory = Path(configured).expanduser().resolve(strict=False)
         directory.mkdir(parents=True, exist_ok=True)
-        return directory
+        return directory, None
 
     if getattr(sys, "frozen", False):
         app_directory = Path(sys.executable).resolve().parent
         if (app_directory / "portable.flag").is_file():
             portable_data = app_directory / "data"
             if _ensure_writable_directory(portable_data):
-                return portable_data
+                return portable_data, None
 
+            fallback = _local_app_data_directory()
+            return fallback, fallback
+
+    return _local_app_data_directory(), None
+
+
+def _local_app_data_directory() -> Path:
     raw_path = QStandardPaths.writableLocation(QStandardPaths.StandardLocation.AppLocalDataLocation)
     if not raw_path:
         raise RuntimeError("Qt did not provide an application data directory")
     directory = Path(raw_path)
     directory.mkdir(parents=True, exist_ok=True)
     return directory
-
 
 def _ensure_writable_directory(directory: Path) -> bool:
     try:
@@ -146,18 +156,3 @@ def configure_portable_tools() -> None:
         os.environ["PATH"] = os.pathsep.join((tools_text, *path_parts))
 
 
-
-def portable_fallback_directory() -> Path | None:
-    if os.environ.get("METUBE_SRT_DATA_DIR", "").strip():
-        return None
-    if not getattr(sys, "frozen", False):
-        return None
-
-    app_directory = Path(sys.executable).resolve().parent
-    if not (app_directory / "portable.flag").is_file():
-        return None
-    if _ensure_writable_directory(app_directory / "data"):
-        return None
-
-    raw_path = QStandardPaths.writableLocation(QStandardPaths.StandardLocation.AppLocalDataLocation)
-    return Path(raw_path) if raw_path else None
