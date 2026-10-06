@@ -236,7 +236,6 @@ def test_list_profiles_marks_orphaned_secret_without_exposing_key() -> None:
     assert valid_key not in repr(listed)
 
 
-
 class UnavailableSecrets(MemorySecrets):
     def get_secret(self, profile_id: str) -> str | None:
         raise CredentialStorageError("simulated credential backend outage")
