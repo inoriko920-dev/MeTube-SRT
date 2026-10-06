@@ -60,6 +60,7 @@ def test_playlist_expands_to_per_video_jobs_with_shared_selection() -> None:
     ]
     assert all(job.quality is QualityPreset.P1080 for job in jobs)
     assert [job.selected_subtitle for job in jobs] == [first_manual, second_auto]
+    assert [job.display_title for job in jobs] == ["A", "B"]
 
 
 def test_subtitle_checkbox_off_propagates_to_every_item() -> None:

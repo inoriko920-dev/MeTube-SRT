@@ -132,11 +132,14 @@ class JobSpec:
     output_directory: str
     quality: QualityPreset
     selected_subtitle: SubtitleTrack | None
+    display_title: str | None = None
 
     def __post_init__(self) -> None:
         if not self.job_id.strip():
             raise ValueError("job_id must be non-empty")
         if not self.output_directory.strip():
             raise ValueError("output_directory must be non-empty")
+        if self.display_title is not None and not self.display_title.strip():
+            raise ValueError("display_title must be non-empty when provided")
 
         validate_youtube_url(self.source_url)

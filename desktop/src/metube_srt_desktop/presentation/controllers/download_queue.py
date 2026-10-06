@@ -247,7 +247,7 @@ class DownloadQueueController(QObject):
         if title is not None:
             return title
         if spec is not None:
-            return spec.source_url
+            return spec.display_title or spec.source_url
         return job_id
 
     def _set_busy(self, busy: bool) -> None:

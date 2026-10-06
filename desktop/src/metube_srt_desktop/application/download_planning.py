@@ -38,6 +38,7 @@ def plan_download_jobs(
                 selected_subtitle=select_subtitle(
                     item.subtitles, requested=selection.subtitle_requested
                 ),
+                display_title=item.title,
             )
         )
 

@@ -51,6 +51,15 @@ def _require_bool(raw: Mapping[str, object], key: str) -> bool:
     return value
 
 
+def _optional_str(raw: Mapping[str, object], key: str) -> str | None:
+    value = raw.get(key)
+    if value is None:
+        return None
+    if not isinstance(value, str):
+        raise ValueError(f"{key} must be a string or null")
+    return value
+
+
 def _optional_mapping(raw: Mapping[str, object], key: str) -> Mapping[str, object] | None:
     value = raw.get(key)
     if value is None:
@@ -170,6 +179,7 @@ class WorkerCommandEnvelope:
                 "output_directory": job.output_directory,
                 "quality": job.quality.value,
                 "selected_subtitle": subtitle_payload,
+                "display_title": job.display_title,
             },
         )
 
@@ -208,6 +218,7 @@ class WorkerCommandEnvelope:
             output_directory=_require_str(self.payload, "output_directory"),
             quality=QualityPreset(_require_str(self.payload, "quality")),
             selected_subtitle=subtitle,
+            display_title=_optional_str(self.payload, "display_title"),
         )
 
 

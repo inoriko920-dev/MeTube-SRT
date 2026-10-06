@@ -33,6 +33,7 @@ def test_download_command_round_trip_preserves_frozen_subtitle_choice() -> None:
         output_directory="Downloads",
         quality=QualityPreset.P1080,
         selected_subtitle=subtitle,
+        display_title="Video Uji",
     )
 
     decoded = WorkerCommandEnvelope.from_json_line(

@@ -15,13 +15,14 @@ from metube_srt_desktop.application.ports.queue_storage import (
 from metube_srt_desktop.domain.jobs import JobSpec, JobState, QualityPreset
 from metube_srt_desktop.domain.subtitles import SubtitleKind, SubtitleTrack
 
-_SCHEMA_VERSION = 1
+_SCHEMA_VERSION = 2
 
 _SCHEMA = """
 CREATE TABLE IF NOT EXISTS queue_jobs (
     job_id TEXT PRIMARY KEY,
     queue_position INTEGER NOT NULL UNIQUE,
     source_url TEXT NOT NULL,
+    display_title TEXT,
     output_directory TEXT NOT NULL,
     quality TEXT NOT NULL,
     subtitle_language_code TEXT,
@@ -71,6 +72,7 @@ class SQLiteQueueStorage(QueueStoragePort):
                         job_id,
                         queue_position,
                         source_url,
+                        display_title,
                         output_directory,
                         quality,
                         subtitle_language_code,
@@ -130,12 +132,13 @@ class SQLiteQueueStorage(QueueStoragePort):
                         last_sequence,
                         updated_at
                     ) VALUES (
-                        ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?,
+                        ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?,
                         CURRENT_TIMESTAMP
                     )
                     ON CONFLICT(job_id) DO UPDATE SET
                         queue_position=excluded.queue_position,
                         source_url=excluded.source_url,
+                        display_title=excluded.display_title,
                         output_directory=excluded.output_directory,
                         quality=excluded.quality,
                         subtitle_language_code=excluded.subtitle_language_code,
@@ -165,6 +168,12 @@ class SQLiteQueueStorage(QueueStoragePort):
         try:
             with self._connect() as connection:
                 connection.executescript(_SCHEMA)
+                columns = {
+                    str(row["name"])
+                    for row in connection.execute("PRAGMA table_info(queue_jobs)").fetchall()
+                }
+                if "display_title" not in columns:
+                    connection.execute("ALTER TABLE queue_jobs ADD COLUMN display_title TEXT")
                 connection.execute(
                     """
                     INSERT INTO app_meta(key, value)
@@ -190,6 +199,7 @@ def _entry_to_row(entry: PersistedQueueEntry) -> tuple[object, ...]:
         entry.job.job_id,
         entry.position,
         entry.job.source_url,
+        entry.job.display_title,
         entry.job.output_directory,
         entry.job.quality.value,
         None if subtitle is None else subtitle.language_code,
@@ -220,6 +230,7 @@ def _row_to_entry(row: sqlite3.Row) -> PersistedQueueEntry:
         output_directory=_require_str(mapping, "output_directory"),
         quality=QualityPreset(_require_str(mapping, "quality")),
         selected_subtitle=subtitle,
+        display_title=_optional_str(mapping, "display_title"),
     )
     output_paths = _decode_output_paths(_require_str(mapping, "output_paths_json"))
     snapshot = JobRuntimeSnapshot(
