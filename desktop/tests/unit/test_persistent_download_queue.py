@@ -145,7 +145,6 @@ def test_restore_interrupts_old_active_job_and_dispatches_only_old_queued_job(
     assert persisted[1].snapshot.state is JobState.SUCCEEDED
 
 
-
 def test_restore_rejects_duplicate_queued_targets_before_dispatch(tmp_path: Path) -> None:
     storage = SQLiteQueueStorage(tmp_path / "app.db")
     first = make_job(10)
