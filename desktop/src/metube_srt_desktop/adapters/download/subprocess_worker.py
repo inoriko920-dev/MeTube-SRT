@@ -113,9 +113,7 @@ class SubprocessWorkerAdapter(DownloadWorkerPort):
             raise ValueError("terminate_grace_seconds must be >= 0")
 
         self._command = command
-        self._worker_argv = tuple(
-            worker_argv if worker_argv is not None else default_worker_argv()
-        )
+        self._worker_argv = tuple(worker_argv if worker_argv is not None else default_worker_argv())
         if not self._worker_argv:
             raise ValueError("worker_argv must not be empty")
 
