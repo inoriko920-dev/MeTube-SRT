@@ -18,9 +18,7 @@ def _valid_item(video_id: str = "abc") -> dict[str, object]:
 
 
 def test_playlist_skips_unavailable_entries_instead_of_failing_all() -> None:
-    request = ResolveRequest(
-        "https://www.youtube.com/playlist?list=PL1234567890"
-    )
+    request = ResolveRequest("https://www.youtube.com/playlist?list=PL1234567890")
     raw: dict[str, object] = {
         "title": "Playlist Uji",
         "entries": [
