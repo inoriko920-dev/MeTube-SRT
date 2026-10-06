@@ -12,6 +12,7 @@ from metube_srt_desktop.bootstrap.app_bootstrap import (
     application_data_directory,
     configure_portable_tools,
     resolve_application_data_directory,
+    run_desktop,
 )
 
 
@@ -158,3 +159,41 @@ def test_resolve_application_data_directory_has_no_fallback_when_writable(
 
     assert directory == tmp_path / "data"
     assert reported_fallback is None
+
+
+
+def test_run_desktop_rejects_busy_data_directory_before_runtime_build(
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path,
+    qapp: object,
+) -> None:
+    del qapp
+    build_called = False
+    warnings: list[tuple[object, ...]] = []
+
+    class BusyRuntimeLock:
+        def __init__(self, data_directory: Path) -> None:
+            assert data_directory == tmp_path.resolve()
+
+        def try_acquire(self) -> bool:
+            return False
+
+    def forbidden_build(*, data_directory: Path | None = None) -> object:
+        nonlocal build_called
+        build_called = True
+        raise AssertionError(f"runtime build must not run for busy directory: {data_directory}")
+
+    def capture_warning(*args: object, **kwargs: object) -> object:
+        del kwargs
+        warnings.append(args)
+        return object()
+
+    monkeypatch.setenv("METUBE_SRT_DATA_DIR", str(tmp_path))
+    monkeypatch.setattr(app_bootstrap, "RuntimeDataLock", BusyRuntimeLock)
+    monkeypatch.setattr(app_bootstrap, "build_runtime_window", forbidden_build)
+    monkeypatch.setattr(app_bootstrap.QMessageBox, "warning", capture_warning)
+
+    assert run_desktop(["metube-srt-test"]) == 2
+    assert build_called is False
+    assert len(warnings) == 1
+    assert "sudah berjalan" in str(warnings[0][1]).lower()

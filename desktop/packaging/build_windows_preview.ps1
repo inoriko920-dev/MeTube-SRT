@@ -181,6 +181,17 @@ Jangan memindahkan hanya file EXE. Pertahankan seluruh isi folder portable.
         throw "Extracted ZIP desktop self-check failed with exit code $($ArchiveSelfCheck.ExitCode)."
     }
 
+    $ArchiveCredentialSelfCheck = Start-Process -FilePath (Join-Path $ArchiveStage "MeTube-SRT.exe") `
+        -ArgumentList "--credential-self-check" -Wait -PassThru
+    if ($ArchiveCredentialSelfCheck.ExitCode -ne 0) {
+        throw "Extracted ZIP credential self-check failed with exit code $($ArchiveCredentialSelfCheck.ExitCode)."
+    }
+
+    $ArchiveBuildInfo = Get-Content (Join-Path $ArchiveStage "BUILD_INFO.json") -Raw | ConvertFrom-Json
+    if ($env:GITHUB_SHA -and $ArchiveBuildInfo.source_commit -ne $env:GITHUB_SHA) {
+        throw "Extracted ZIP BUILD_INFO source_commit does not match GITHUB_SHA."
+    }
+
     $ArchiveCancelCommand = '{"schema_version":1,"command_type":"cancel","job_id":"archive-smoke","worker_run_id":"archive-smoke-run","payload":{}}'
     $ArchiveWorkerOutput = @($ArchiveCancelCommand | & (Join-Path $ArchiveStage "worker\MeTube-SRT-Worker.exe"))
     Assert-LastExitCode "Extracted ZIP worker smoke"
