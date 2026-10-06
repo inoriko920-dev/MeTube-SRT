@@ -207,7 +207,6 @@ def test_profile_label_cannot_store_secret_in_sqlite_metadata() -> None:
     assert secrets.items == {}
 
 
-
 def test_list_profiles_marks_orphaned_secret_without_exposing_key() -> None:
     profiles = MemoryProfiles()
     secrets = MemorySecrets()

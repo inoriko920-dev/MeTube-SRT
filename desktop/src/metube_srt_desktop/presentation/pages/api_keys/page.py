@@ -66,7 +66,6 @@ class ApiKeysPage(QWidget):
             )
 
 
-
 def _secret_status(profile: GeminiKeyProfile) -> str:
     if profile.secret_available is True:
         return "Tersimpan aman"
