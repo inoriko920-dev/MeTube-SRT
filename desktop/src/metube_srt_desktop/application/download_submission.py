@@ -33,26 +33,23 @@ class DownloadSubmissionResult:
                 raise ValueError("queued snapshot does not match its planned job")
 
 
-class ResolvePlanEnqueueUseCase:
-    """Resolve one source, freeze per-video jobs, then admit them to the queue."""
+class EnqueueResolvedSourceUseCase:
+    """Freeze jobs from already-resolved metadata and admit them atomically."""
 
     def __init__(
         self,
-        resolver: SourceResolverPort,
         queue: DownloadQueuePort,
         *,
         job_id_factory: Callable[[], str] = _new_job_id,
     ) -> None:
-        self._resolver = resolver
         self._queue = queue
         self._job_id_factory = job_id_factory
 
     def execute(
         self,
-        request: ResolveRequest,
+        source: ResolvedSource,
         selection: DownloadSelection,
     ) -> DownloadSubmissionResult:
-        source = self._resolver.resolve(request)
         jobs = plan_download_jobs(
             source,
             selection,
@@ -64,3 +61,28 @@ class ResolvePlanEnqueueUseCase:
             jobs=jobs,
             queued=queued,
         )
+
+
+class ResolvePlanEnqueueUseCase:
+    """Resolve one source, freeze per-video jobs, then admit them to the queue."""
+
+    def __init__(
+        self,
+        resolver: SourceResolverPort,
+        queue: DownloadQueuePort,
+        *,
+        job_id_factory: Callable[[], str] = _new_job_id,
+    ) -> None:
+        self._resolver = resolver
+        self._enqueue_resolved = EnqueueResolvedSourceUseCase(
+            queue,
+            job_id_factory=job_id_factory,
+        )
+
+    def execute(
+        self,
+        request: ResolveRequest,
+        selection: DownloadSelection,
+    ) -> DownloadSubmissionResult:
+        source = self._resolver.resolve(request)
+        return self._enqueue_resolved.execute(source, selection)

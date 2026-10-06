@@ -5,8 +5,11 @@ from enum import StrEnum
 from PySide6.QtCore import Qt
 from PySide6.QtWidgets import QHBoxLayout, QMainWindow, QSplitter, QStackedWidget, QWidget
 
+from metube_srt_desktop.application.ports.download_queue import QueueRuntimePort
+from metube_srt_desktop.application.ports.source_resolver import SourceResolverPort
 from metube_srt_desktop.presentation.components.ai_panel import AIWorkspace
 from metube_srt_desktop.presentation.components.navigation_rail import NavigationRail
+from metube_srt_desktop.presentation.controllers.download_queue import DownloadQueueController
 from metube_srt_desktop.presentation.pages.api_keys.page import ApiKeysPage
 from metube_srt_desktop.presentation.pages.download.page import DownloadPage
 from metube_srt_desktop.presentation.pages.queue.page import QueuePage
@@ -23,8 +26,16 @@ class PageId(StrEnum):
 
 
 class MainWindow(QMainWindow):
-    def __init__(self) -> None:
+    def __init__(
+        self,
+        *,
+        resolver: SourceResolverPort | None = None,
+        queue: QueueRuntimePort | None = None,
+    ) -> None:
         super().__init__()
+        if (resolver is None) != (queue is None):
+            raise ValueError("resolver and queue must be provided together")
+
         self.setObjectName("main_window")
         self.setWindowTitle("MeTube-SRT Desktop")
         self.resize(1440, 900)
@@ -43,9 +54,11 @@ class MainWindow(QMainWindow):
 
         self.stack = QStackedWidget()
         self.stack.setObjectName("page_stack")
+        self.download_page = DownloadPage()
+        self.queue_page = QueuePage()
         self._pages: dict[PageId, QWidget] = {
-            PageId.DOWNLOAD: DownloadPage(),
-            PageId.QUEUE: QueuePage(),
+            PageId.DOWNLOAD: self.download_page,
+            PageId.QUEUE: self.queue_page,
             PageId.API_KEYS: ApiKeysPage(),
             PageId.SETTINGS: SettingsPage(),
         }
@@ -63,6 +76,16 @@ class MainWindow(QMainWindow):
         self.splitter.setStretchFactor(1, 0)
         self.splitter.setSizes([1100, TOKENS.ai_panel_width])
         root_layout.addWidget(self.splitter, 1)
+
+        self.download_controller: DownloadQueueController | None = None
+        if resolver is not None and queue is not None:
+            self.download_controller = DownloadQueueController(
+                self.download_page,
+                self.queue_page,
+                resolver,
+                queue,
+                parent=self,
+            )
 
         self.navigate(PageId.DOWNLOAD.value)
 

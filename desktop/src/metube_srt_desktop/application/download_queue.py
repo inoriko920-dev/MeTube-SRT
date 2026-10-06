@@ -228,6 +228,10 @@ class BoundedDownloadQueue:
         with self._lock:
             return tuple(entry.snapshot for entry in self._entries.values())
 
+    def job_specs(self) -> tuple[JobSpec, ...]:
+        with self._lock:
+            return tuple(entry.job for entry in self._entries.values())
+
     def drain_updates(self) -> tuple[JobRuntimeSnapshot, ...]:
         updates: list[JobRuntimeSnapshot] = []
         while True:
