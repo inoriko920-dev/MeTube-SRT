@@ -342,7 +342,6 @@ def test_missing_terminal_stream_close_does_not_wait_forever() -> None:
     assert process.killed is True
 
 
-
 def test_worker_process_environment_forces_utf8_protocol(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:

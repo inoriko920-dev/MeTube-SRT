@@ -41,9 +41,7 @@ def test_playlist_skips_unavailable_entries_instead_of_failing_all() -> None:
 
 
 def test_collection_with_no_downloadable_entries_fails_clearly() -> None:
-    request = ResolveRequest(
-        "https://www.youtube.com/playlist?list=PL1234567890"
-    )
+    request = ResolveRequest("https://www.youtube.com/playlist?list=PL1234567890")
     raw: dict[str, object] = {
         "title": "Playlist Kosong",
         "entries": [

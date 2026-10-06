@@ -237,7 +237,6 @@ def test_worker_classifies_network_failure_without_raw_exception() -> None:
     assert "secret-value" not in output.getvalue()
 
 
-
 def test_download_progress_events_are_throttled_without_delaying_cancel(
     monkeypatch: pytest.MonkeyPatch,
     tmp_path: Path,

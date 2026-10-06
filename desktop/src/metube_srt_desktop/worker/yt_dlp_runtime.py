@@ -107,10 +107,7 @@ def _progress_hook(
         state = status.get("status")
         if state == "downloading":
             now = monotonic()
-            if (
-                last_emit_at is not None
-                and now - last_emit_at < _PROGRESS_EMIT_INTERVAL_SECONDS
-            ):
+            if last_emit_at is not None and now - last_emit_at < _PROGRESS_EMIT_INTERVAL_SECONDS:
                 return
             last_emit_at = now
 
