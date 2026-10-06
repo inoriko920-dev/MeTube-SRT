@@ -323,6 +323,7 @@ class SubprocessDownloadWorkerFactory(DownloadWorkerFactoryPort):
             terminate_grace_seconds=self._terminate_grace_seconds,
         )
 
+
 def _new_resolve_id() -> str:
     return f"resolve-{uuid4().hex}"
 
