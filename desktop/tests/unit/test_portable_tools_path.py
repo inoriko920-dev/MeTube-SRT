@@ -79,6 +79,7 @@ def test_application_data_directory_falls_back_when_portable_is_not_writable(
     monkeypatch.delenv("METUBE_SRT_DATA_DIR", raising=False)
     monkeypatch.setattr(sys, "frozen", True, raising=False)
     monkeypatch.setattr(sys, "executable", str(app))
+
     def not_writable(directory: Path) -> bool:
         return False
 
