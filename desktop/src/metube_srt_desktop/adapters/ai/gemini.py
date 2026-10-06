@@ -7,6 +7,7 @@ from threading import RLock
 from time import sleep
 from typing import Protocol, cast
 
+import httpx
 from google import genai
 from google.genai import errors, types
 
@@ -149,7 +150,7 @@ class GeminiAdapter(AIProviderPort):
             )
         except errors.APIError as exc:
             raise _map_api_error(exc) from exc
-        except (OSError, TimeoutError) as exc:
+        except (httpx.TransportError, OSError, TimeoutError) as exc:
             raise AIProviderError(
                 "network_error",
                 "Gemini tidak dapat dijangkau.",
@@ -258,7 +259,7 @@ class GeminiAdapter(AIProviderPort):
             )
         except errors.APIError as exc:
             raise _map_api_error(exc) from exc
-        except (OSError, TimeoutError) as exc:
+        except (httpx.TransportError, OSError, TimeoutError) as exc:
             raise AIProviderError("network_error", "Gemini tidak dapat dijangkau.") from exc
         except Exception as exc:
             raise AIProviderError("provider_error", "Gemini tidak dapat diuji.") from exc

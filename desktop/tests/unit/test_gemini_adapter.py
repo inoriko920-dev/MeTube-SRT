@@ -4,6 +4,7 @@ from threading import Event, Thread
 from types import SimpleNamespace
 from typing import ClassVar
 
+import httpx
 import pytest
 
 import metube_srt_desktop.adapters.ai.gemini as gemini_module
@@ -363,3 +364,97 @@ def test_profile_check_uses_exact_profile_secret_not_current_active(
     adapter.check_profile("profile-a")
 
     assert FakeClient.calls == ["exact-a"]
+
+
+
+@pytest.mark.parametrize("error_type", [httpx.ConnectError, httpx.ReadTimeout])
+def test_generate_reply_retries_real_httpx_transport_errors(
+    monkeypatch: pytest.MonkeyPatch,
+    error_type: type[httpx.TransportError],
+) -> None:
+    request = httpx.Request("POST", "https://generativelanguage.googleapis.com/")
+    attempts = 0
+
+    class TransportModels(FakeModels):
+        def generate_content(self, **kwargs: object) -> object:
+            nonlocal attempts
+            attempts += 1
+            raise error_type("transport failed", request=request)
+
+    class TransportClient(FakeClient):
+        def __init__(self, *, api_key: str, http_options: object | None = None) -> None:
+            self.models = TransportModels(api_key, type(self).calls)
+
+    monkeypatch.setattr(gemini_module.genai, "Client", TransportClient)
+    delays: list[float] = []
+    adapter = GeminiAdapter(lambda: "same-key", sleep_fn=delays.append)
+
+    with pytest.raises(Exception) as caught:
+        adapter.generate_reply(
+            system_instruction="Balas singkat.",
+            messages=(AIChatMessage(AIChatRole.USER, "halo"),),
+        )
+
+    assert getattr(caught.value, "error_code", None) == "network_error"
+    assert attempts == 3
+    assert delays == [0.25, 0.75]
+
+
+def test_check_retries_real_httpx_connect_error(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    request = httpx.Request("POST", "https://generativelanguage.googleapis.com/")
+    attempts = 0
+
+    class TransportModels(FakeModels):
+        def generate_content(self, **kwargs: object) -> object:
+            nonlocal attempts
+            attempts += 1
+            raise httpx.ConnectError("connection failed", request=request)
+
+    class TransportClient(FakeClient):
+        def __init__(self, *, api_key: str, http_options: object | None = None) -> None:
+            self.models = TransportModels(api_key, type(self).calls)
+
+    monkeypatch.setattr(gemini_module.genai, "Client", TransportClient)
+    delays: list[float] = []
+    adapter = GeminiAdapter(lambda: "same-key", sleep_fn=delays.append)
+
+    with pytest.raises(Exception) as caught:
+        adapter.check()
+
+    assert getattr(caught.value, "error_code", None) == "network_error"
+    assert attempts == 3
+    assert delays == [0.25, 0.75]
+
+
+def test_generate_reply_recovers_after_one_httpx_transport_error(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    request = httpx.Request("POST", "https://generativelanguage.googleapis.com/")
+    attempts = 0
+
+    class RecoveringModels(FakeModels):
+        def generate_content(self, **kwargs: object) -> object:
+            nonlocal attempts
+            attempts += 1
+            if attempts == 1:
+                raise httpx.ConnectError("connection failed", request=request)
+            return SimpleNamespace(text="Pulih.")
+
+    class RecoveringClient(FakeClient):
+        def __init__(self, *, api_key: str, http_options: object | None = None) -> None:
+            self.models = RecoveringModels(api_key, type(self).calls)
+
+    monkeypatch.setattr(gemini_module.genai, "Client", RecoveringClient)
+    delays: list[float] = []
+    adapter = GeminiAdapter(lambda: "same-key", sleep_fn=delays.append)
+
+    reply = adapter.generate_reply(
+        system_instruction="Balas singkat.",
+        messages=(AIChatMessage(AIChatRole.USER, "halo"),),
+    )
+
+    assert reply == "Pulih."
+    assert attempts == 2
+    assert delays == [0.25]

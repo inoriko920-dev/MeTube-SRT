@@ -470,6 +470,7 @@ version = "0.1.0.dev0"
 source = { editable = "." }
 dependencies = [
     { name = "google-genai" },
+    { name = "httpx" },
     { name = "keyring" },
     { name = "pyside6" },
     { name = "yt-dlp", extra = ["curl-cffi", "default"] },
@@ -488,6 +489,7 @@ dev = [
 [package.metadata]
 requires-dist = [
     { name = "google-genai", specifier = "==2.28.0" },
+    { name = "httpx", specifier = "==0.28.1" },
     { name = "keyring", specifier = "==25.7.0" },
     { name = "pyside6", specifier = "==6.11.2" },
     { name = "yt-dlp", extras = ["default", "curl-cffi"], specifier = "==2026.8.19" },
