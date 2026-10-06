@@ -49,7 +49,7 @@ class FakeYoutubeDL:
         sleep(0.02)
         progress_hooks = self.options.get("progress_hooks")
         assert isinstance(progress_hooks, list)
-        for hook in progress_hooks:
+        for hook in cast(list[object], progress_hooks):
             typed_hook = _as_hook(hook)
             typed_hook(
                 {
@@ -64,7 +64,7 @@ class FakeYoutubeDL:
 
         postprocessor_hooks = self.options.get("postprocessor_hooks")
         assert isinstance(postprocessor_hooks, list)
-        for hook in postprocessor_hooks:
+        for hook in cast(list[object], postprocessor_hooks):
             _as_hook(hook)({"status": "started"})
 
         output_dir = self.options["paths"]

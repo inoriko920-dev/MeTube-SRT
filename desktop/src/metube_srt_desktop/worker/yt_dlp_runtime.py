@@ -38,7 +38,8 @@ class DownloadCancellationRequested(RuntimeError):
 def _default_ydl_factory(options: dict[str, object]) -> YoutubeDLSession:
     from yt_dlp import YoutubeDL
 
-    return cast(YoutubeDLSession, YoutubeDL(options))
+    factory = cast(YoutubeDLFactory, YoutubeDL)
+    return factory(options)
 
 
 def resolve_source_live(
