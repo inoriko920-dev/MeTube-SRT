@@ -199,7 +199,7 @@ def test_resolve_request_rejects_invalid_and_credential_bearing_urls() -> None:
         ResolveRequest("bukan-url")
 
     with pytest.raises(ValueError, match="embedded credentials"):
-        ResolveRequest("https://user:secret@www.youtube.com/watch?v=abc")
+        ResolveRequest("https://user@www.youtube.com/watch?v=abc")
 
     with pytest.raises(ValueError, match="YouTube URL"):
         ResolveRequest("https://example.com/video")
