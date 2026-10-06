@@ -91,3 +91,21 @@ def test_application_data_directory_falls_back_when_portable_is_not_writable(
 
     assert application_data_directory() == fallback
     assert fallback.is_dir()
+
+
+
+def test_configure_portable_tools_exports_explicit_deno_path(
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path,
+) -> None:
+    tools_dir = tmp_path / "tools"
+    tools_dir.mkdir()
+    deno = tools_dir / ("deno.exe" if sys.platform == "win32" else "deno")
+    deno.write_bytes(b"")
+    monkeypatch.setenv("METUBE_SRT_TOOLS_DIR", str(tools_dir))
+    monkeypatch.delenv("METUBE_SRT_DENO_PATH", raising=False)
+    monkeypatch.setenv("PATH", "existing")
+
+    configure_portable_tools()
+
+    assert os.environ["METUBE_SRT_DENO_PATH"] == str(deno.resolve())

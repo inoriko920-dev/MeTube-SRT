@@ -319,3 +319,22 @@ def test_initial_command_is_published_before_concurrent_cancel() -> None:
     ]
     assert commands
     assert commands[0].command_type.value == "download"
+
+
+
+def test_missing_terminal_stream_close_does_not_wait_forever() -> None:
+    process = FakeProcess(
+        event_line(WorkerEventType.READY, sequence=0),
+        timeout_until_killed=True,
+    )
+    adapter = SubprocessWorkerAdapter(
+        make_download_command(),
+        process_factory=CapturingFactory(process),
+        terminate_grace_seconds=0,
+    )
+
+    with pytest.raises(WorkerProcessError, match="event stream"):
+        list(adapter.events())
+
+    assert process.terminated is True
+    assert process.killed is True

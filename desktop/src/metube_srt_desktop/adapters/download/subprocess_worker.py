@@ -184,7 +184,13 @@ class SubprocessWorkerAdapter(DownloadWorkerPort):
                 self._close_stdin(process)
 
         if terminal_event is None:
-            return_code = process.wait()
+            try:
+                return_code = process.wait(timeout=self._terminate_grace_seconds)
+            except subprocess.TimeoutExpired as exc:
+                self._abort_process(process)
+                raise WorkerProcessError(
+                    "worker closed its event stream without a terminal event"
+                ) from exc
             raise WorkerProcessError(f"worker exited without a terminal event (code {return_code})")
 
         return_code = self._wait_after_terminal(process)
