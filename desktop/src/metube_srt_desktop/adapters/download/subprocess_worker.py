@@ -109,11 +109,14 @@ class SubprocessWorkerAdapter(DownloadWorkerPort):
         process_factory: ProcessFactory | None = None,
         cancel_grace_seconds: float = 2.0,
         terminate_grace_seconds: float = 1.0,
+        terminal_exit_grace_seconds: float = 5.0,
     ) -> None:
         if cancel_grace_seconds < 0:
             raise ValueError("cancel_grace_seconds must be >= 0")
         if terminate_grace_seconds < 0:
             raise ValueError("terminate_grace_seconds must be >= 0")
+        if terminal_exit_grace_seconds < 0:
+            raise ValueError("terminal_exit_grace_seconds must be >= 0")
 
         self._command = command
         self._worker_argv = tuple(worker_argv if worker_argv is not None else default_worker_argv())
@@ -123,6 +126,7 @@ class SubprocessWorkerAdapter(DownloadWorkerPort):
         self._process_factory = process_factory or _default_process_factory
         self._cancel_grace_seconds = cancel_grace_seconds
         self._terminate_grace_seconds = terminate_grace_seconds
+        self._terminal_exit_grace_seconds = terminal_exit_grace_seconds
 
         self._process: WorkerProcess | None = None
         self._write_lock = RLock()
@@ -227,10 +231,13 @@ class SubprocessWorkerAdapter(DownloadWorkerPort):
                 process = self._process_factory(self._worker_argv)
             except OSError as exc:
                 raise WorkerProcessError("worker process could not be started") from exc
-            self._process = process
 
-        self._write_command(process, self._command)
-        return process
+            # Publish the process only after its initial command is fully written.
+            # This prevents a concurrent cancel request from becoming the worker's
+            # first protocol command.
+            self._write_command(process, self._command)
+            self._process = process
+            return process
 
     def _write_command(
         self,
@@ -252,7 +259,7 @@ class SubprocessWorkerAdapter(DownloadWorkerPort):
 
     def _wait_after_terminal(self, process: WorkerProcess) -> int:
         try:
-            return process.wait(timeout=self._terminate_grace_seconds)
+            return process.wait(timeout=self._terminal_exit_grace_seconds)
         except subprocess.TimeoutExpired as exc:
             self._abort_process(process)
             raise WorkerProcessError("worker did not exit after terminal event") from exc
@@ -317,10 +324,12 @@ class SubprocessDownloadWorkerFactory(DownloadWorkerFactoryPort):
         worker_argv: Sequence[str] | None = None,
         cancel_grace_seconds: float = 2.0,
         terminate_grace_seconds: float = 1.0,
+        terminal_exit_grace_seconds: float = 5.0,
     ) -> None:
         self._worker_argv = None if worker_argv is None else tuple(worker_argv)
         self._cancel_grace_seconds = cancel_grace_seconds
         self._terminate_grace_seconds = terminate_grace_seconds
+        self._terminal_exit_grace_seconds = terminal_exit_grace_seconds
 
     def create(
         self,
@@ -334,6 +343,7 @@ class SubprocessDownloadWorkerFactory(DownloadWorkerFactoryPort):
             worker_argv=self._worker_argv,
             cancel_grace_seconds=self._cancel_grace_seconds,
             terminate_grace_seconds=self._terminate_grace_seconds,
+            terminal_exit_grace_seconds=self._terminal_exit_grace_seconds,
         )
 
 
@@ -356,12 +366,14 @@ class SubprocessSourceResolver(SourceResolverPort):
         resolve_id_factory: Callable[[], str] = _new_resolve_id,
         worker_run_id_factory: Callable[[], str] = _new_resolve_run_id,
         terminate_grace_seconds: float = 1.0,
+        terminal_exit_grace_seconds: float = 5.0,
     ) -> None:
         self._worker_argv = None if worker_argv is None else tuple(worker_argv)
         self._process_factory = process_factory
         self._resolve_id_factory = resolve_id_factory
         self._worker_run_id_factory = worker_run_id_factory
         self._terminate_grace_seconds = terminate_grace_seconds
+        self._terminal_exit_grace_seconds = terminal_exit_grace_seconds
 
     def resolve(self, request: ResolveRequest) -> ResolvedSource:
         resolve_id = self._resolve_id_factory()
@@ -381,6 +393,7 @@ class SubprocessSourceResolver(SourceResolverPort):
             worker_argv=self._worker_argv,
             process_factory=self._process_factory,
             terminate_grace_seconds=self._terminate_grace_seconds,
+            terminal_exit_grace_seconds=self._terminal_exit_grace_seconds,
         )
 
         try:

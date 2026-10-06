@@ -3,7 +3,7 @@ from __future__ import annotations
 import subprocess
 from collections.abc import Sequence
 from io import StringIO
-from threading import Event
+from threading import Event, Thread
 from typing import TextIO
 
 import pytest
@@ -229,3 +229,94 @@ def test_real_child_process_cancel_command_contract() -> None:
         WorkerEventType.READY,
         WorkerEventType.CANCELLED,
     ]
+
+
+
+class SlowCleanExitProcess(FakeProcess):
+    def __init__(self, output: str, *, minimum_clean_timeout: float) -> None:
+        super().__init__(output)
+        self.minimum_clean_timeout = minimum_clean_timeout
+        self.wait_timeouts: list[float | None] = []
+
+    def wait(self, timeout: float | None = None) -> int:
+        self.wait_timeouts.append(timeout)
+        if timeout is not None and timeout < self.minimum_clean_timeout:
+            raise subprocess.TimeoutExpired(cmd="fake-worker", timeout=timeout)
+        return 0
+
+
+def test_terminal_event_allows_packaged_worker_time_to_exit_cleanly() -> None:
+    process = SlowCleanExitProcess(
+        event_line(WorkerEventType.READY, sequence=0)
+        + event_line(WorkerEventType.SUCCEEDED, sequence=1),
+        minimum_clean_timeout=3.0,
+    )
+    adapter = SubprocessWorkerAdapter(
+        make_download_command(),
+        process_factory=CapturingFactory(process),
+        terminate_grace_seconds=0.1,
+        terminal_exit_grace_seconds=5.0,
+    )
+
+    events = list(adapter.events())
+
+    assert events[-1].event_type is WorkerEventType.SUCCEEDED
+    assert 5.0 in process.wait_timeouts
+    assert process.terminated is False
+    assert process.killed is False
+
+
+def test_initial_command_is_published_before_concurrent_cancel() -> None:
+    class BlockingFirstWrite(CapturingInput):
+        def __init__(self) -> None:
+            super().__init__()
+            self.first_write_started = Event()
+            self.release_first_write = Event()
+            self.write_count = 0
+
+        def write(self, value: str) -> int:
+            self.write_count += 1
+            if self.write_count == 1:
+                self.first_write_started.set()
+                assert self.release_first_write.wait(1.0)
+            return super().write(value)
+
+    process = FakeProcess("", timeout_until_killed=True)
+    blocking_input = BlockingFirstWrite()
+    process.stdin_buffer = blocking_input
+    process.stdin = blocking_input
+    adapter = SubprocessWorkerAdapter(
+        make_download_command(),
+        process_factory=CapturingFactory(process),
+        cancel_grace_seconds=0,
+        terminate_grace_seconds=0,
+    )
+
+    event_error: list[BaseException] = []
+
+    def consume_events() -> None:
+        try:
+            list(adapter.events())
+        except BaseException as exc:
+            event_error.append(exc)
+
+    consumer = Thread(target=consume_events)
+    consumer.start()
+    assert blocking_input.first_write_started.wait(1.0)
+
+    cancel_thread = Thread(target=adapter.request_cancel)
+    cancel_thread.start()
+
+    # Cancel cannot publish while the initial command is still being written.
+    assert blocking_input.write_count == 1
+    blocking_input.release_first_write.set()
+
+    cancel_thread.join(1.0)
+    consumer.join(1.0)
+
+    commands = [
+        WorkerCommandEnvelope.from_json_line(line)
+        for line in blocking_input.getvalue().splitlines()
+    ]
+    assert commands
+    assert commands[0].command_type.value == "download"
