@@ -6,7 +6,11 @@ from metube_srt_desktop.application.dto.ai_chat import (
     AIChatRole,
     AIConversationReply,
 )
-from metube_srt_desktop.application.ports.ai_provider import AIProviderError, AIProviderPort
+from metube_srt_desktop.application.ports.ai_provider import (
+    AIProviderCancellationPort,
+    AIProviderError,
+    AIProviderPort,
+)
 from metube_srt_desktop.application.redaction import redact_sensitive_text
 
 _HUMANLIKE_SYSTEM_INSTRUCTION = """
@@ -102,6 +106,10 @@ class HumanlikeAIConversation:
 
     def clear(self) -> None:
         self._history.clear()
+
+    def cancel_current(self) -> None:
+        if isinstance(self._provider, AIProviderCancellationPort):
+            self._provider.cancel_current()
 
     def _remember(self, *messages: AIChatMessage) -> None:
         self._history.extend(messages)

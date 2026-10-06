@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from threading import Event, Thread
 from types import SimpleNamespace
 from typing import ClassVar
 
@@ -254,3 +255,58 @@ def test_generate_reply_stops_after_transient_retry_budget(
     assert getattr(caught.value, "error_code", None) == "network_error"
     assert DownClient.calls == ["same-key", "same-key", "same-key"]
     assert delays == [0.25, 0.75]
+
+
+
+def test_cancel_current_closes_active_client_and_stops_retry(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    started = Event()
+    closed = Event()
+    finished = Event()
+    errors_seen: list[BaseException] = []
+
+    class BlockingModels(FakeModels):
+        def generate_content(self, **kwargs: object) -> object:
+            self._calls.append(self._credential)
+            started.set()
+            assert closed.wait(2.0)
+            raise OSError("request client closed")
+
+    class BlockingClient(FakeClient):
+        def __init__(self, *, api_key: str, http_options: object | None = None) -> None:
+            self.models = BlockingModels(api_key, type(self).calls)
+            type(self).timeouts.append(getattr(http_options, "timeout", None))
+
+        def close(self) -> None:
+            closed.set()
+
+    monkeypatch.setattr(gemini_module.genai, "Client", BlockingClient)
+    BlockingClient.calls.clear()
+    BlockingClient.timeouts.clear()
+    delays: list[float] = []
+    adapter = GeminiAdapter(lambda: "same-key", sleep_fn=delays.append)
+
+    def run_request() -> None:
+        try:
+            adapter.generate_reply(
+                system_instruction="Balas singkat.",
+                messages=(AIChatMessage(AIChatRole.USER, "halo"),),
+            )
+        except BaseException as exc:
+            errors_seen.append(exc)
+        finally:
+            finished.set()
+
+    thread = Thread(target=run_request, daemon=True)
+    thread.start()
+    assert started.wait(2.0)
+
+    adapter.cancel_current()
+
+    assert finished.wait(2.0)
+    thread.join(timeout=0.1)
+    assert len(errors_seen) == 1
+    assert getattr(errors_seen[0], "error_code", None) == "cancelled"
+    assert BlockingClient.calls == ["same-key"]
+    assert delays == []

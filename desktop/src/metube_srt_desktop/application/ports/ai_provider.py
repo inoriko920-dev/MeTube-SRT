@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from typing import Protocol
+from typing import Protocol, runtime_checkable
 
 from metube_srt_desktop.application.dto.ai_chat import AIChatMessage
 
@@ -27,3 +27,9 @@ class AIProviderPort(Protocol):
     ) -> str: ...
 
     def check(self) -> None: ...
+
+
+
+@runtime_checkable
+class AIProviderCancellationPort(Protocol):
+    def cancel_current(self) -> None: ...

@@ -146,4 +146,7 @@ class AIAgentController(QObject):
         )
 
     def shutdown(self) -> None:
+        if self._closed:
+            return
         self._closed = True
+        self._conversation.cancel_current()

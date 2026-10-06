@@ -3,6 +3,7 @@ from __future__ import annotations
 import os
 from collections.abc import Callable
 from contextlib import suppress
+from threading import RLock
 from time import sleep
 from typing import Protocol, cast
 
@@ -47,6 +48,9 @@ class GeminiAdapter(AIProviderPort):
         self._invalid_key_handler = invalid_key_handler
         self._rate_limit_handler = rate_limit_handler
         self._sleep = sleep_fn
+        self._client_lock = RLock()
+        self._active_clients: dict[int, genai.Client] = {}
+        self._cancel_epoch = 0
         self._model = (model or os.environ.get("METUBE_SRT_GEMINI_MODEL") or _DEFAULT_MODEL).strip()
         if not self._model:
             raise ValueError("Gemini model must be non-empty")
@@ -63,6 +67,7 @@ class GeminiAdapter(AIProviderPort):
     ) -> str:
         contents = [_to_content(message) for message in messages]
         api_key = self._require_api_key()
+        operation_epoch = self._operation_epoch()
 
         for _ in range(100):
             try:
@@ -70,6 +75,7 @@ class GeminiAdapter(AIProviderPort):
                     api_key,
                     system_instruction=system_instruction,
                     contents=contents,
+                    operation_epoch=operation_epoch,
                 )
             except AIProviderError as exc:
                 if exc.error_code == "rate_limited":
@@ -90,8 +96,10 @@ class GeminiAdapter(AIProviderPort):
         *,
         system_instruction: str,
         contents: list[types.Content],
+        operation_epoch: int,
     ) -> str:
         for retry_index in range(len(_TRANSIENT_RETRY_DELAYS_SECONDS) + 1):
+            self._raise_if_cancelled(operation_epoch)
             try:
                 return self._generate_with_key(
                     api_key,
@@ -103,6 +111,7 @@ class GeminiAdapter(AIProviderPort):
                     _TRANSIENT_RETRY_DELAYS_SECONDS
                 ):
                     raise
+                self._raise_if_cancelled(operation_epoch)
                 self._sleep(_TRANSIENT_RETRY_DELAYS_SECONDS[retry_index])
         raise AIProviderError("network_error", "Gemini sedang tidak tersedia.")
 
@@ -119,6 +128,7 @@ class GeminiAdapter(AIProviderPort):
                 api_key=api_key,
                 http_options=types.HttpOptions(timeout=_GEMINI_REQUEST_TIMEOUT_MS),
             )
+            self._register_client(client)
             models = cast(_GenerateModels, client.models)
             response = models.generate_content(
                 model=self._model,
@@ -143,6 +153,7 @@ class GeminiAdapter(AIProviderPort):
             ) from exc
         finally:
             if client is not None:
+                self._unregister_client(client)
                 with suppress(Exception):
                     client.close()
 
@@ -178,15 +189,17 @@ class GeminiAdapter(AIProviderPort):
 
     def check(self) -> None:
         api_key = self._require_api_key()
+        operation_epoch = self._operation_epoch()
         try:
-            self._check_with_retries(api_key)
+            self._check_with_retries(api_key, operation_epoch=operation_epoch)
         except AIProviderError as exc:
             if exc.error_code == "rate_limited":
                 self._mark_rate_limited()
             raise
 
-    def _check_with_retries(self, api_key: str) -> None:
+    def _check_with_retries(self, api_key: str, *, operation_epoch: int) -> None:
         for retry_index in range(len(_TRANSIENT_RETRY_DELAYS_SECONDS) + 1):
+            self._raise_if_cancelled(operation_epoch)
             try:
                 self._check_with_key(api_key)
                 return
@@ -195,6 +208,7 @@ class GeminiAdapter(AIProviderPort):
                     _TRANSIENT_RETRY_DELAYS_SECONDS
                 ):
                     raise
+                self._raise_if_cancelled(operation_epoch)
                 self._sleep(_TRANSIENT_RETRY_DELAYS_SECONDS[retry_index])
 
     def _check_with_key(self, api_key: str) -> None:
@@ -204,6 +218,7 @@ class GeminiAdapter(AIProviderPort):
                 api_key=api_key,
                 http_options=types.HttpOptions(timeout=_GEMINI_REQUEST_TIMEOUT_MS),
             )
+            self._register_client(client)
             models = cast(_GenerateModels, client.models)
             response = models.generate_content(
                 model=self._model,
@@ -221,11 +236,38 @@ class GeminiAdapter(AIProviderPort):
             raise AIProviderError("provider_error", "Gemini tidak dapat diuji.") from exc
         finally:
             if client is not None:
+                self._unregister_client(client)
                 with suppress(Exception):
                     client.close()
 
         if response.text is None or not response.text.strip():
             raise AIProviderError("empty_response", "Gemini tidak mengembalikan jawaban.")
+
+    def cancel_current(self) -> None:
+        with self._client_lock:
+            self._cancel_epoch += 1
+            clients = tuple(self._active_clients.values())
+        for client in clients:
+            with suppress(Exception):
+                client.close()
+
+    def _operation_epoch(self) -> int:
+        with self._client_lock:
+            return self._cancel_epoch
+
+    def _raise_if_cancelled(self, operation_epoch: int) -> None:
+        with self._client_lock:
+            cancelled = operation_epoch != self._cancel_epoch
+        if cancelled:
+            raise AIProviderError("cancelled", "Permintaan Gemini dibatalkan.")
+
+    def _register_client(self, client: genai.Client) -> None:
+        with self._client_lock:
+            self._active_clients[id(client)] = client
+
+    def _unregister_client(self, client: genai.Client) -> None:
+        with self._client_lock:
+            self._active_clients.pop(id(client), None)
 
     def _mark_rate_limited(self) -> None:
         if self._rate_limit_handler is None:

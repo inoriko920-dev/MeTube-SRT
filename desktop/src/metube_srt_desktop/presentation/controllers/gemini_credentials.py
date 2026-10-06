@@ -10,7 +10,11 @@ from PySide6.QtCore import QObject, QRunnable, QThreadPool, Signal, Slot
 from PySide6.QtWidgets import QFileDialog, QInputDialog, QLineEdit, QMessageBox
 
 from metube_srt_desktop.application.gemini_credentials import GeminiCredentialRegistry
-from metube_srt_desktop.application.ports.ai_provider import AIProviderError, AIProviderPort
+from metube_srt_desktop.application.ports.ai_provider import (
+    AIProviderCancellationPort,
+    AIProviderError,
+    AIProviderPort,
+)
 from metube_srt_desktop.application.ports.credentials import CredentialStorageError
 from metube_srt_desktop.presentation.pages.api_keys.page import ApiKeysPage
 
@@ -197,4 +201,8 @@ class GeminiCredentialsController(QObject):
         QMessageBox.warning(self._page, "API Gemini", message)
 
     def shutdown(self) -> None:
+        if self._closed:
+            return
         self._closed = True
+        if isinstance(self._provider, AIProviderCancellationPort):
+            self._provider.cancel_current()

@@ -147,3 +147,21 @@ def test_named_bearer_redaction_does_not_leave_token_tail() -> None:
     assert result.secret_detected is True
     assert result.text == f"{field_name}=[SECRET DISEMBUNYIKAN]"
     assert credential_value not in result.text
+
+
+
+def test_conversation_delegates_provider_cancellation() -> None:
+    class CancellableProvider(FakeProvider):
+        def __init__(self) -> None:
+            super().__init__()
+            self.cancelled = False
+
+        def cancel_current(self) -> None:
+            self.cancelled = True
+
+    provider = CancellableProvider()
+    conversation = HumanlikeAIConversation(provider)
+
+    conversation.cancel_current()
+
+    assert provider.cancelled is True
