@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from metube_srt_desktop.application.dto.gemini_credentials import GeminiKeyProfile
 from metube_srt_desktop.application.gemini_credentials import GeminiCredentialRegistry
+from metube_srt_desktop.application.ports.credentials import CredentialStorageError
 
 
 class MemoryProfiles:
@@ -104,10 +105,10 @@ def test_import_keys_rolls_back_partial_batch_on_storage_failure() -> None:
                 "fake-key-two-xxxxxxxxxxxxxxxxxxxxxxxx",
             )
         )
-    except RuntimeError as exc:
-        assert "simulated metadata failure" in str(exc)
+    except CredentialStorageError as exc:
+        assert str(exc) == "API key tidak dapat disimpan."
     else:
-        raise AssertionError("expected simulated storage failure")
+        raise AssertionError("expected credential storage failure")
 
     assert profiles.list_profiles() == ()
     assert secrets.items == {}
