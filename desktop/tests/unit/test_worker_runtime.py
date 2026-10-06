@@ -190,13 +190,11 @@ def test_failure_event_does_not_echo_raw_exception_message() -> None:
     assert _events(output)[-1].event_type is WorkerEventType.FAILED
 
 
-
 def test_worker_classifies_youtube_login_failure_without_echoing_raw_details() -> None:
     class LoginRequiredYoutubeDL(FakeYoutubeDL):
         def extract_info(self, url: str, *, download: bool) -> object:
             raise RuntimeError(
-                "ERROR: Sign in to confirm you're not a bot "
-                "https://example.test/?token=do-not-echo"
+                "ERROR: Sign in to confirm you're not a bot https://example.test/?token=do-not-echo"
             )
 
     command = WorkerCommandEnvelope.for_resolve(

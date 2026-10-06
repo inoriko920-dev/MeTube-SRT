@@ -164,15 +164,10 @@ if __name__ == "__main__":
     raise SystemExit(main())
 
 
-
 def _classify_runtime_failure(error: Exception) -> tuple[str, str]:
     text = str(error).casefold()
 
-    if (
-        "sign in to confirm you" in text
-        or "not a bot" in text
-        or "login_required" in text
-    ):
+    if "sign in to confirm you" in text or "not a bot" in text or "login_required" in text:
         return (
             "youtube_login_required",
             "YouTube meminta verifikasi atau login untuk koneksi ini",

@@ -73,7 +73,6 @@ def build_download_options(job: JobSpec) -> dict[str, object]:
     return options
 
 
-
 def _javascript_runtime_options() -> dict[str, object]:
     deno_path = os.environ.get("METUBE_SRT_DENO_PATH", "").strip()
     deno_options: dict[str, object] = {}
