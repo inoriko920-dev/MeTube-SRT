@@ -19,6 +19,7 @@ def build_resolve_options() -> dict[str, object]:
     return {
         "quiet": True,
         "no_warnings": True,
+        "noprogress": True,
         "extract_flat": False,
         "extractor_args": {"youtube": {"skip": ["translated_subs"]}},
     }
@@ -35,6 +36,9 @@ def build_download_options(job: JobSpec) -> dict[str, object]:
         "noplaylist": True,
         "ignoreerrors": False,
         "continuedl": True,
+        "quiet": True,
+        "no_warnings": True,
+        "noprogress": True,
         "writesubtitles": False,
         "writeautomaticsub": False,
     }
