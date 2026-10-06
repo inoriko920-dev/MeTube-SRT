@@ -171,7 +171,6 @@ def test_invalid_profile_is_skipped_for_next_usable_key() -> None:
     assert registry.active_secret() == "fake-key-second-xxxxxxxxxxxxxxxxxxx"
 
 
-
 def test_add_profile_rejects_duplicate_existing_secret() -> None:
     profiles = MemoryProfiles()
     secrets = MemorySecrets()
