@@ -67,7 +67,7 @@ def run_desktop(argv: Sequence[str] | None = None) -> int:
     app.setApplicationName("MeTube-SRT Desktop")
     app.setOrganizationName("MeTube-SRT")
     window, queue = build_runtime_window()
-    app.aboutToQuit.connect(lambda: queue.shutdown(wait=False, cancel_active=True))
+    app.aboutToQuit.connect(lambda: queue.shutdown(wait=True, cancel_active=True))
     window.show()
 
     if owns_application:
@@ -116,6 +116,13 @@ def configure_portable_tools() -> None:
 
     if tools_directory is None or not tools_directory.is_dir():
         return
+
+    deno_names = ("deno.exe", "deno") if sys.platform == "win32" else ("deno", "deno.exe")
+    for name in deno_names:
+        deno_path = tools_directory / name
+        if deno_path.is_file():
+            os.environ["METUBE_SRT_DENO_PATH"] = str(deno_path.resolve())
+            break
 
     current_path = os.environ.get("PATH", "")
     tools_text = str(tools_directory.resolve())

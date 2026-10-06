@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+import os
+
 from metube_srt_desktop.domain.jobs import JobSpec, QualityPreset
 from metube_srt_desktop.domain.subtitles import SubtitleKind
 
@@ -17,6 +19,7 @@ def build_resolve_options() -> dict[str, object]:
     """
 
     return {
+        **_javascript_runtime_options(),
         "quiet": True,
         "no_warnings": True,
         "noprogress": True,
@@ -29,6 +32,7 @@ def build_download_options(job: JobSpec) -> dict[str, object]:
     """Translate an immutable JobSpec into explicit yt-dlp Python API options."""
 
     options: dict[str, object] = {
+        **_javascript_runtime_options(),
         "format": "bv*+ba/b",
         "paths": {"home": job.output_directory},
         "outtmpl": {"default": "%(title)s [%(id)s].%(ext)s"},
@@ -67,3 +71,15 @@ def build_download_options(job: JobSpec) -> dict[str, object]:
         options["writeautomaticsub"] = True
 
     return options
+
+
+
+def _javascript_runtime_options() -> dict[str, object]:
+    deno_path = os.environ.get("METUBE_SRT_DENO_PATH", "").strip()
+    deno_options: dict[str, object] = {}
+    if deno_path:
+        deno_options["path"] = deno_path
+    return {
+        "js_runtimes": {"deno": deno_options},
+        "remote_components": set(),
+    }
