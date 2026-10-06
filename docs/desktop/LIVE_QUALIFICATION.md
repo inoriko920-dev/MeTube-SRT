@@ -30,6 +30,8 @@ The desktop Python environment is created by `uv sync --all-groups`.
 
 ## Run
 
+For the easiest Windows run, open the `desktop` folder and double-click `RUN_LIVE_QUALIFICATION.bat`.
+
 From the repository root:
 
 ```powershell

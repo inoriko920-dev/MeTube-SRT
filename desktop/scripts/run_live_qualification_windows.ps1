@@ -92,7 +92,7 @@ try {
             $ProbeUrl = "https://www.youtube.com/watch?v=gHKT4uU8Zng"
         }
 
-        & uv run yt-dlp -v --skip-download --no-playlist --list-subs --extractor-args "youtube:skip=translated_subs" $ProbeUrl 2>&1 |
+        & uv run yt-dlp --ignore-config --skip-download --no-playlist --list-subs --extractor-args "youtube:skip=translated_subs" $ProbeUrl 2>&1 |
             Tee-Object -FilePath $ProbeLogPath
         $ProbeExit = $LASTEXITCODE
     }
