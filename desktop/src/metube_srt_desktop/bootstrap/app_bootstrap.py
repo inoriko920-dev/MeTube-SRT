@@ -57,7 +57,6 @@ def _application_data_directory() -> Path:
     return Path(raw_path)
 
 
-
 def _configure_portable_tools() -> None:
     configured = os.environ.get("METUBE_SRT_TOOLS_DIR", "").strip()
     tools_directory: Path | None = Path(configured).expanduser() if configured else None

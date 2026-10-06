@@ -21,12 +21,12 @@ def test_default_worker_argv_prefers_explicit_override(monkeypatch: pytest.Monke
     assert _default_worker_argv() == (r"C:\Portable\MeTube-SRT-Worker.exe",)
 
 
-def test_default_worker_argv_uses_sibling_worker_when_frozen(monkeypatch: pytest.MonkeyPatch) -> None:
+def test_default_worker_argv_uses_sibling_worker_when_frozen(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
     monkeypatch.delenv("METUBE_SRT_WORKER_EXE", raising=False)
     monkeypatch.setattr(sys, "frozen", True, raising=False)
     monkeypatch.setattr(sys, "executable", r"C:\Portable\MeTube-SRT.exe")
 
-    expected = Path(r"C:\Portable\MeTube-SRT.exe").resolve().with_name(
-        "MeTube-SRT-Worker.exe"
-    )
+    expected = Path(r"C:\Portable\MeTube-SRT.exe").resolve().with_name("MeTube-SRT-Worker.exe")
     assert _default_worker_argv() == (str(expected),)
