@@ -2,6 +2,7 @@
 param(
     [string]$OutputRoot = "",
     [switch]$SkipSync,
+    [switch]$InstallMissingTools,
     [switch]$ValidateOnly
 )
 
@@ -29,6 +30,43 @@ function Write-LogLine {
     $Message | Tee-Object -FilePath $LogPath -Append
 }
 
+function Refresh-ProcessPath {
+    $machinePath = [Environment]::GetEnvironmentVariable("Path", "Machine")
+    $userPath = [Environment]::GetEnvironmentVariable("Path", "User")
+    $wingetLinks = Join-Path $env:LOCALAPPDATA "Microsoft\WinGet\Links"
+    $parts = @($machinePath, $userPath, $wingetLinks) | Where-Object { $_ }
+    $env:Path = $parts -join ";"
+}
+
+function Install-QualificationTools {
+    param([Parameter(Mandatory = $true)][string[]]$MissingCommands)
+
+    if (-not (Test-RequiredCommand "winget")) {
+        throw "Missing qualification tools and WinGet is not available."
+    }
+
+    $packageIds = New-Object System.Collections.Generic.List[string]
+    foreach ($command in $MissingCommands) {
+        switch ($command) {
+            "uv" { if (-not $packageIds.Contains("astral-sh.uv")) { $packageIds.Add("astral-sh.uv") } }
+            "deno" { if (-not $packageIds.Contains("DenoLand.Deno")) { $packageIds.Add("DenoLand.Deno") } }
+            "ffmpeg" { if (-not $packageIds.Contains("Gyan.FFmpeg")) { $packageIds.Add("Gyan.FFmpeg") } }
+            "ffprobe" { if (-not $packageIds.Contains("Gyan.FFmpeg")) { $packageIds.Add("Gyan.FFmpeg") } }
+        }
+    }
+
+    foreach ($packageId in $packageIds) {
+        Write-Host ""
+        Write-Host "Installing qualification tool package: $packageId"
+        & winget install -e --id $packageId --silent --accept-package-agreements --accept-source-agreements --disable-interactivity
+        if ($LASTEXITCODE -ne 0) {
+            throw "WinGet failed to install $packageId (exit code $LASTEXITCODE)."
+        }
+    }
+
+    Refresh-ProcessPath
+}
+
 if (-not (Test-Path (Join-Path $DesktopRoot "pyproject.toml"))) {
     throw "Desktop project root could not be resolved."
 }
@@ -46,6 +84,14 @@ Remove-Item $LogPath, $ProbeLogPath, $SummaryPath -Force -ErrorAction SilentlyCo
 
 $required = @("uv", "deno", "ffmpeg", "ffprobe")
 $missing = @($required | Where-Object { -not (Test-RequiredCommand $_) })
+
+if ($missing.Count -gt 0 -and $InstallMissingTools) {
+    Write-Host "Missing qualification tool(s): $($missing -join ', ')"
+    Write-Host "The one-click launcher will install only the missing test tools through WinGet."
+    Install-QualificationTools -MissingCommands $missing
+    $missing = @($required | Where-Object { -not (Test-RequiredCommand $_) })
+}
+
 if ($missing.Count -gt 0) {
     Write-LogLine "Missing required command(s): $($missing -join ', ')"
     Write-LogLine "Install the missing tools and make sure they are available on PATH."
@@ -53,6 +99,7 @@ if ($missing.Count -gt 0) {
     Write-Host ""
     Write-Host "Qualification cannot start yet."
     Write-Host "Missing: $($missing -join ', ')"
+    Write-Host "Tip: run the one-click BAT launcher to install missing test tools with WinGet."
     exit 2
 }
 

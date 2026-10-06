@@ -32,6 +32,14 @@ The desktop Python environment is created by `uv sync --all-groups`.
 
 For the easiest Windows run, open the `desktop` folder and double-click `RUN_LIVE_QUALIFICATION.bat`.
 
+The one-click launcher checks the qualification-only prerequisites. If `uv`, Deno, FFmpeg, or ffprobe is missing, it installs only the missing packages through Windows Package Manager (WinGet):
+
+- `astral-sh.uv`
+- `DenoLand.Deno`
+- `Gyan.FFmpeg`
+
+This convenience bootstrap is only for Slice 10 testing. It is not the production portable-tool packaging design.
+
 From the repository root:
 
 ```powershell
@@ -50,7 +58,7 @@ For repeated runs after dependencies are already synced:
 .\scripts\run_live_qualification_windows.ps1 -SkipSync
 ```
 
-The wrapper does not read browser cookies, account credentials, proxy secrets, or Gemini keys.
+The wrapper does not read browser cookies, account credentials, proxy secrets, or Gemini keys. The PowerShell command without `-InstallMissingTools` remains non-installing and will simply report any missing prerequisite.
 
 ## Evidence
 
