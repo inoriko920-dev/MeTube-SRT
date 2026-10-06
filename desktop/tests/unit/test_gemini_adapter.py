@@ -31,7 +31,7 @@ class FakeModels:
 class FakeClient:
     calls: ClassVar[list[str]] = []
 
-    def __init__(self, *, credential: str) -> None:
+    def __init__(self, *, api_key: str) -> None:
         self.models = FakeModels(api_key, type(self).calls)
 
     def close(self) -> None:
@@ -77,7 +77,7 @@ def test_generate_reply_does_not_rotate_rate_limit(
             raise FakeAPIError(429)
 
     class RateLimitedClient(FakeClient):
-        def __init__(self, *, credential: str) -> None:
+        def __init__(self, *, api_key: str) -> None:
             self.models = RateLimitedModels(api_key, type(self).calls)
 
     monkeypatch.setattr(gemini_module.errors, "APIError", FakeAPIError)
