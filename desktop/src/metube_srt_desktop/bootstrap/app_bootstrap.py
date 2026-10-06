@@ -8,12 +8,19 @@ from pathlib import Path
 from PySide6.QtCore import QStandardPaths
 from PySide6.QtWidgets import QApplication
 
+from metube_srt_desktop.adapters.ai import GeminiAdapter
+from metube_srt_desktop.adapters.credentials import KeyringGeminiSecretStore
 from metube_srt_desktop.adapters.download import (
     SubprocessDownloadWorkerFactory,
     SubprocessSourceResolver,
 )
+from metube_srt_desktop.adapters.storage.sqlite_gemini_profiles import (
+    SQLiteGeminiProfileRepository,
+)
 from metube_srt_desktop.adapters.storage import SQLiteQueueStorage
+from metube_srt_desktop.application.ai_conversation import HumanlikeAIConversation
 from metube_srt_desktop.application.download_queue import BoundedDownloadQueue
+from metube_srt_desktop.application.gemini_credentials import GeminiCredentialRegistry
 from metube_srt_desktop.presentation.shell.main_window import MainWindow
 
 
@@ -23,11 +30,28 @@ def build_runtime_window(
 ) -> tuple[MainWindow, BoundedDownloadQueue]:
     configure_portable_tools()
     directory = data_directory or _application_data_directory()
-    storage = SQLiteQueueStorage(directory / "app.db")
+    database_path = directory / "app.db"
+    storage = SQLiteQueueStorage(database_path)
     worker_factory = SubprocessDownloadWorkerFactory()
     queue = BoundedDownloadQueue.restore(worker_factory, storage)
     resolver = SubprocessSourceResolver()
-    return MainWindow(resolver=resolver, queue=queue), queue
+
+    profile_repository = SQLiteGeminiProfileRepository(database_path)
+    secret_store = KeyringGeminiSecretStore()
+    credential_registry = GeminiCredentialRegistry(profile_repository, secret_store)
+    ai_provider = GeminiAdapter(credential_registry.active_secret)
+    ai_conversation = HumanlikeAIConversation(ai_provider)
+
+    return (
+        MainWindow(
+            resolver=resolver,
+            queue=queue,
+            ai_conversation=ai_conversation,
+            credential_registry=credential_registry,
+            ai_provider=ai_provider,
+        ),
+        queue,
+    )
 
 
 def run_desktop(argv: Sequence[str] | None = None) -> int:

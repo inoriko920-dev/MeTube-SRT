@@ -1,0 +1,99 @@
+from __future__ import annotations
+
+from datetime import UTC, datetime
+from uuid import uuid4
+
+from metube_srt_desktop.application.dto.gemini_credentials import GeminiKeyProfile
+from metube_srt_desktop.application.ports.credentials import (
+    CredentialSecretPort,
+    CredentialStorageError,
+    GeminiProfileRepositoryPort,
+)
+
+_MAX_PROFILES = 100
+
+
+class GeminiCredentialRegistry:
+    """Coordinate Gemini key metadata with OS-backed secret storage."""
+
+    def __init__(
+        self,
+        profiles: GeminiProfileRepositoryPort,
+        secrets: CredentialSecretPort,
+    ) -> None:
+        self._profiles = profiles
+        self._secrets = secrets
+
+    def list_profiles(self) -> tuple[GeminiKeyProfile, ...]:
+        return self._profiles.list_profiles()
+
+    def add_profile(self, label: str, raw_key: str) -> GeminiKeyProfile:
+        clean_label = label.strip()
+        clean_key = raw_key.strip()
+        if not clean_label:
+            raise ValueError("Nama API key tidak boleh kosong.")
+        if len(clean_key) < 20:
+            raise ValueError("API key Gemini terlihat tidak valid.")
+
+        existing = self._profiles.list_profiles()
+        if len(existing) >= _MAX_PROFILES:
+            raise ValueError("Maksimal 100 API key Gemini.")
+
+        profile = GeminiKeyProfile(
+            profile_id=uuid4().hex,
+            label=clean_label,
+            enabled=True,
+            priority=(max((item.priority for item in existing), default=0) + 1),
+        )
+        try:
+            self._secrets.set_secret(profile.profile_id, clean_key)
+            self._profiles.save_profile(profile)
+        except Exception as exc:
+            try:
+                self._secrets.delete_secret(profile.profile_id)
+            except Exception:
+                pass
+            if isinstance(exc, (CredentialStorageError, ValueError)):
+                raise
+            raise CredentialStorageError("API key tidak dapat disimpan.") from exc
+        return profile
+
+    def import_keys(self, raw_keys: tuple[str, ...]) -> tuple[GeminiKeyProfile, ...]:
+        clean_keys = tuple(key.strip() for key in raw_keys if key.strip())
+        if not clean_keys:
+            raise ValueError("File TXT tidak berisi API key.")
+        existing_count = len(self._profiles.list_profiles())
+        if existing_count + len(clean_keys) > _MAX_PROFILES:
+            raise ValueError("Jumlah API key akan melebihi batas 100.")
+
+        created: list[GeminiKeyProfile] = []
+        for index, key in enumerate(clean_keys, start=1):
+            profile = self.add_profile(f"Gemini {existing_count + index:02d}", key)
+            created.append(profile)
+        return tuple(created)
+
+    def active_profile(self) -> GeminiKeyProfile | None:
+        for profile in self._profiles.list_profiles():
+            if profile.enabled:
+                return profile
+        return None
+
+    def active_secret(self) -> str | None:
+        profile = self.active_profile()
+        if profile is None:
+            return None
+        return self._secrets.get_secret(profile.profile_id)
+
+    def mark_active_status(self, status: str) -> None:
+        profile = self.active_profile()
+        if profile is None:
+            return
+        updated = GeminiKeyProfile(
+            profile_id=profile.profile_id,
+            label=profile.label,
+            enabled=profile.enabled,
+            priority=profile.priority,
+            status=status,
+            last_tested_at=datetime.now(UTC).isoformat(timespec="seconds"),
+        )
+        self._profiles.save_profile(updated)

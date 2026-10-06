@@ -5,11 +5,18 @@ from enum import StrEnum
 from PySide6.QtCore import Qt
 from PySide6.QtWidgets import QHBoxLayout, QMainWindow, QSplitter, QStackedWidget, QWidget
 
+from metube_srt_desktop.application.ai_conversation import HumanlikeAIConversation
+from metube_srt_desktop.application.gemini_credentials import GeminiCredentialRegistry
+from metube_srt_desktop.application.ports.ai_provider import AIProviderPort
 from metube_srt_desktop.application.ports.download_queue import QueueRuntimePort
 from metube_srt_desktop.application.ports.source_resolver import SourceResolverPort
 from metube_srt_desktop.presentation.components.ai_panel import AIWorkspace
 from metube_srt_desktop.presentation.components.navigation_rail import NavigationRail
+from metube_srt_desktop.presentation.controllers.ai_agent import AIAgentController
 from metube_srt_desktop.presentation.controllers.download_queue import DownloadQueueController
+from metube_srt_desktop.presentation.controllers.gemini_credentials import (
+    GeminiCredentialsController,
+)
 from metube_srt_desktop.presentation.pages.api_keys.page import ApiKeysPage
 from metube_srt_desktop.presentation.pages.download.page import DownloadPage
 from metube_srt_desktop.presentation.pages.queue.page import QueuePage
@@ -31,6 +38,9 @@ class MainWindow(QMainWindow):
         *,
         resolver: SourceResolverPort | None = None,
         queue: QueueRuntimePort | None = None,
+        ai_conversation: HumanlikeAIConversation | None = None,
+        credential_registry: GeminiCredentialRegistry | None = None,
+        ai_provider: AIProviderPort | None = None,
     ) -> None:
         super().__init__()
         if (resolver is None) != (queue is None):
@@ -56,10 +66,11 @@ class MainWindow(QMainWindow):
         self.stack.setObjectName("page_stack")
         self.download_page = DownloadPage()
         self.queue_page = QueuePage()
+        self.api_keys_page = ApiKeysPage()
         self._pages: dict[PageId, QWidget] = {
             PageId.DOWNLOAD: self.download_page,
             PageId.QUEUE: self.queue_page,
-            PageId.API_KEYS: ApiKeysPage(),
+            PageId.API_KEYS: self.api_keys_page,
             PageId.SETTINGS: SettingsPage(),
         }
         for page in self._pages.values():
@@ -78,12 +89,32 @@ class MainWindow(QMainWindow):
         root_layout.addWidget(self.splitter, 1)
 
         self.download_controller: DownloadQueueController | None = None
+        self.ai_controller: AIAgentController | None = None
+        self.credentials_controller: GeminiCredentialsController | None = None
+
         if resolver is not None and queue is not None:
             self.download_controller = DownloadQueueController(
                 self.download_page,
                 self.queue_page,
                 resolver,
                 queue,
+                parent=self,
+            )
+
+        if ai_conversation is not None and queue is not None:
+            self.ai_controller = AIAgentController(
+                self.ai_workspace,
+                self.download_page,
+                queue,
+                ai_conversation,
+                parent=self,
+            )
+
+        if credential_registry is not None and ai_provider is not None:
+            self.credentials_controller = GeminiCredentialsController(
+                self.api_keys_page,
+                credential_registry,
+                ai_provider,
                 parent=self,
             )
 
