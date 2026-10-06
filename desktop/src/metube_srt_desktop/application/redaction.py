@@ -17,7 +17,12 @@ _NAMED_SECRET_PATTERN = re.compile(
     r"refresh[_ -]?token|"
     r"client[_ -]?secret|"
     r"token|authorization|cookie|password|passwd|secret"
-    r")\s*[:=]\s*([^\s,;]+)"
+    r")\s*[:=]\s*("
+    r"Bearer\s+[A-Za-z0-9._~+\-/]{12,}=*|"
+    r"\"[^\"]*\"|"
+    r"'[^']*'|"
+    r"[^\s,;]+"
+    r")"
 )
 
 
@@ -33,12 +38,6 @@ def redact_sensitive_text(value: str) -> RedactionResult:
     redacted = value
     detected = False
 
-    redacted, count = _API_KEY_PATTERN.subn(_REDACTED, redacted)
-    detected = detected or count > 0
-
-    redacted, count = _BEARER_PATTERN.subn(_REDACTED, redacted)
-    detected = detected or count > 0
-
     redacted, count = _BASIC_AUTH_URL_PATTERN.subn(
         lambda match: f"{match.group(1)}{_REDACTED}@",
         redacted,
@@ -49,6 +48,12 @@ def redact_sensitive_text(value: str) -> RedactionResult:
         lambda match: f"{match.group(1)}={_REDACTED}",
         redacted,
     )
+    detected = detected or count > 0
+
+    redacted, count = _BEARER_PATTERN.subn(_REDACTED, redacted)
+    detected = detected or count > 0
+
+    redacted, count = _API_KEY_PATTERN.subn(_REDACTED, redacted)
     detected = detected or count > 0
 
     return RedactionResult(text=redacted, secret_detected=detected)

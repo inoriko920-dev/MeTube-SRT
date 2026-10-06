@@ -3,6 +3,7 @@ from __future__ import annotations
 from metube_srt_desktop.application.ai_conversation import HumanlikeAIConversation
 from metube_srt_desktop.application.dto.ai_chat import AIAgentContext, AIChatMessage, AIChatRole
 from metube_srt_desktop.application.ports.ai_provider import AIProviderError
+from metube_srt_desktop.application.redaction import redact_sensitive_text
 
 
 class FakeProvider:
@@ -126,3 +127,26 @@ def test_sensitive_download_context_is_redacted_before_provider_call() -> None:
     assert account_name not in serialized
     assert credential_value not in serialized
     assert "SECRET DISEMBUNYIKAN" in serialized
+
+
+
+def test_named_api_key_redaction_produces_one_clean_marker() -> None:
+    field_name = "api" + "_key"
+    credential_value = "AI" + "za" + ("z" * 30)
+
+    result = redact_sensitive_text(f"{field_name}={credential_value}")
+
+    assert result.secret_detected is True
+    assert result.text == f"{field_name}=[SECRET DISEMBUNYIKAN]"
+    assert credential_value not in result.text
+
+
+def test_named_bearer_redaction_does_not_leave_token_tail() -> None:
+    field_name = "author" + "ization"
+    credential_value = "Bearer " + ("t" * 24)
+
+    result = redact_sensitive_text(f"{field_name}={credential_value}")
+
+    assert result.secret_detected is True
+    assert result.text == f"{field_name}=[SECRET DISEMBUNYIKAN]"
+    assert credential_value not in result.text
