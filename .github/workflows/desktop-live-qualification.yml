@@ -1,0 +1,64 @@
+name: Desktop Live yt-dlp Qualification
+
+on:
+  push:
+    branches:
+      - "step10/**"
+    paths:
+      - "desktop/**"
+      - ".github/workflows/desktop-live-qualification.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  live-ytdlp:
+    runs-on: windows-latest
+    timeout-minutes: 20
+    defaults:
+      run:
+        working-directory: desktop
+    env:
+      PYTHONUTF8: "1"
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v10.2.0
+        with:
+          version: "0.12.22"
+          enable-cache: true
+          cache-dependency-glob: "desktop/uv.lock"
+
+      - name: Install Python
+        run: uv python install 3.13.16
+
+      - name: Install Deno for YouTube EJS qualification
+        uses: denoland/setup-deno@v2
+        with:
+          deno-version: v2.x
+
+      - name: Sync desktop environment
+        run: uv sync --all-groups
+
+      - name: Verify external qualification tools
+        shell: pwsh
+        run: |
+          deno --version
+          ffmpeg -version | Select-Object -First 1
+          ffprobe -version | Select-Object -First 1
+
+      - name: Run live yt-dlp qualification
+        run: uv run python scripts/qualify_live_ytdlp.py
+
+      - name: Upload live qualification evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: desktop-live-ytdlp-qualification
+          path: desktop/build/live-qualification/
+          if-no-files-found: warn
+          retention-days: 14
