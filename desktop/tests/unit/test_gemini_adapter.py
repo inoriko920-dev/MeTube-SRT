@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from types import SimpleNamespace
+from typing import ClassVar
 
 import pytest
 
@@ -28,7 +29,7 @@ class FakeModels:
 
 
 class FakeClient:
-    calls: list[str] = []
+    calls: ClassVar[list[str]] = []
 
     def __init__(self, *, api_key: str) -> None:
         self.models = FakeModels(api_key, type(self).calls)
