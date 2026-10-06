@@ -1,7 +1,8 @@
 from __future__ import annotations
 
 from collections.abc import Iterable
-from threading import Condition, Event, Lock\nfrom time import monotonic, sleep
+from threading import Condition, Event, Lock
+from time import monotonic, sleep
 
 import pytest
 
