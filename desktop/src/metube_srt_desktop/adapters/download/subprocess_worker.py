@@ -14,8 +14,10 @@ from metube_srt_desktop.application.dto.worker_protocol import (
 )
 from metube_srt_desktop.application.ports.download_worker import (
     DownloadWorkerError,
+    DownloadWorkerFactoryPort,
     DownloadWorkerPort,
 )
+from metube_srt_desktop.domain.jobs import JobSpec
 
 _TERMINAL_EVENTS = {
     WorkerEventType.SUCCEEDED,
@@ -284,3 +286,32 @@ class SubprocessWorkerAdapter(DownloadWorkerPort):
             return
         with self._write_lock, suppress(OSError, ValueError):
             stdin.close()
+
+
+class SubprocessDownloadWorkerFactory(DownloadWorkerFactoryPort):
+    """Construct lazy subprocess workers for application-owned download jobs."""
+
+    def __init__(
+        self,
+        *,
+        worker_argv: Sequence[str] | None = None,
+        cancel_grace_seconds: float = 2.0,
+        terminate_grace_seconds: float = 1.0,
+    ) -> None:
+        self._worker_argv = None if worker_argv is None else tuple(worker_argv)
+        self._cancel_grace_seconds = cancel_grace_seconds
+        self._terminate_grace_seconds = terminate_grace_seconds
+
+    def create(
+        self,
+        job: JobSpec,
+        *,
+        worker_run_id: str,
+    ) -> DownloadWorkerPort:
+        command = WorkerCommandEnvelope.for_download(job, worker_run_id=worker_run_id)
+        return SubprocessWorkerAdapter(
+            command,
+            worker_argv=self._worker_argv,
+            cancel_grace_seconds=self._cancel_grace_seconds,
+            terminate_grace_seconds=self._terminate_grace_seconds,
+        )
