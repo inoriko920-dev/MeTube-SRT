@@ -194,10 +194,18 @@ def test_resolve_failure_never_reaches_planning_or_queue() -> None:
     assert queue.calls == 0
 
 
-
 def test_resolve_request_rejects_invalid_and_credential_bearing_urls() -> None:
     with pytest.raises(ValueError, match="absolute http"):
         ResolveRequest("bukan-url")
 
     with pytest.raises(ValueError, match="embedded credentials"):
         ResolveRequest("https://user:secret@www.youtube.com/watch?v=abc")
+
+    with pytest.raises(ValueError, match="YouTube URL"):
+        ResolveRequest("https://example.com/video")
+
+    assert ResolveRequest("https://youtu.be/abc").source_url == "https://youtu.be/abc"
+    assert (
+        ResolveRequest("https://music.youtube.com/watch?v=abc").source_url
+        == "https://music.youtube.com/watch?v=abc"
+    )

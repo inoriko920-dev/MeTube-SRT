@@ -6,6 +6,25 @@ from urllib.parse import urlsplit
 
 from metube_srt_desktop.domain.subtitles import SubtitleTrack
 
+_YOUTUBE_HOSTS = {"youtube.com", "youtu.be", "youtube-nocookie.com"}
+
+
+def validate_youtube_url(source_url: str) -> None:
+    if not source_url.strip():
+        raise ValueError("source_url must be non-empty")
+    parsed = urlsplit(source_url)
+    if parsed.scheme not in {"http", "https"} or not parsed.netloc:
+        raise ValueError("source_url must be an absolute http(s) URL")
+    if parsed.username is not None or parsed.password is not None:
+        raise ValueError("source_url must not contain embedded credentials")
+
+    hostname = (parsed.hostname or "").rstrip(".").casefold()
+    if not any(
+        hostname == allowed or hostname.endswith(f".{allowed}")
+        for allowed in _YOUTUBE_HOSTS
+    ):
+        raise ValueError("source_url must be a YouTube URL")
+
 
 class SourceKind(StrEnum):
     VIDEO = "video"
@@ -120,8 +139,4 @@ class JobSpec:
         if not self.output_directory.strip():
             raise ValueError("output_directory must be non-empty")
 
-        parsed = urlsplit(self.source_url)
-        if parsed.scheme not in {"http", "https"} or not parsed.netloc:
-            raise ValueError("source_url must be an absolute http(s) URL")
-        if parsed.username is not None or parsed.password is not None:
-            raise ValueError("source_url must not contain embedded credentials")
+        validate_youtube_url(self.source_url)

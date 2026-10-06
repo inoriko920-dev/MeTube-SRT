@@ -1,9 +1,8 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
-from urllib.parse import urlsplit
 
-from metube_srt_desktop.domain.jobs import SourceKind
+from metube_srt_desktop.domain.jobs import SourceKind, validate_youtube_url
 from metube_srt_desktop.domain.subtitles import SubtitleTrack
 
 
@@ -12,13 +11,7 @@ class ResolveRequest:
     source_url: str
 
     def __post_init__(self) -> None:
-        if not self.source_url.strip():
-            raise ValueError("source_url must be non-empty")
-        parsed = urlsplit(self.source_url)
-        if parsed.scheme not in {"http", "https"} or not parsed.netloc:
-            raise ValueError("source_url must be an absolute http(s) URL")
-        if parsed.username is not None or parsed.password is not None:
-            raise ValueError("source_url must not contain embedded credentials")
+        validate_youtube_url(self.source_url)
 
 
 @dataclass(frozen=True, slots=True)
