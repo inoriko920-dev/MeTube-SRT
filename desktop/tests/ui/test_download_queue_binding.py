@@ -294,7 +294,6 @@ def test_relative_output_directory_is_normalized_before_enqueue(qtbot: QtBot) ->
         queue.shutdown(wait=True)
 
 
-
 def test_subtitle_warning_shows_success_without_srt(qtbot: QtBot) -> None:
     class SubtitleWarningWorker(ImmediateWorker):
         def events(self) -> Iterable[WorkerEnvelope]:
@@ -334,14 +333,15 @@ def test_subtitle_warning_shows_success_without_srt(qtbot: QtBot) -> None:
 
         qtbot.waitUntil(
             lambda: (
-                len(queue.snapshots()) == 1
-                and queue.snapshots()[0].state is JobState.SUCCEEDED
+                len(queue.snapshots()) == 1 and queue.snapshots()[0].state is JobState.SUCCEEDED
             ),
             timeout=2000,
         )
         qtbot.waitUntil(
-            lambda: window.queue_page.model.rowCount() == 1
-            and window.queue_page.model.item(0, 2).text() == "Selesai (tanpa SRT)",
+            lambda: (
+                window.queue_page.model.rowCount() == 1
+                and window.queue_page.model.item(0, 2).text() == "Selesai (tanpa SRT)"
+            ),
             timeout=2000,
         )
 
