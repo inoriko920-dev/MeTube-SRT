@@ -81,7 +81,6 @@ def test_resolve_options_keep_single_video_errors_strict() -> None:
     assert resolve["ignoreerrors"] is False
 
 
-
 def test_resolve_options_force_single_video_without_disabling_collection_mode() -> None:
     single = build_resolve_options(force_single_video=True)
     collection = build_resolve_options(tolerate_unavailable_entries=True)

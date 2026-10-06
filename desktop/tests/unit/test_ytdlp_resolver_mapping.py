@@ -65,12 +65,9 @@ def test_single_video_still_rejects_incomplete_metadata() -> None:
         map_resolved_source(request, raw)
 
 
-
 def test_watch_url_with_playlist_context_remains_single_video() -> None:
     assert (
-        is_collection_url(
-            "https://www.youtube.com/watch?v=abc123&list=PL1234567890&index=2"
-        )
+        is_collection_url("https://www.youtube.com/watch?v=abc123&list=PL1234567890&index=2")
         is False
     )
     assert is_collection_url("https://youtu.be/abc123?list=PL1234567890") is False
