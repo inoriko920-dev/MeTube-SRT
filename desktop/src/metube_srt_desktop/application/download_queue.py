@@ -210,9 +210,7 @@ class BoundedDownloadQueue:
             for target_key in target_keys:
                 owner = self._target_reservations.get(target_key)
                 if owner is not None:
-                    raise ValueError(
-                        f"download target already active or queued by job_id: {owner}"
-                    )
+                    raise ValueError(f"download target already active or queued by job_id: {owner}")
 
             staged: list[_QueueEntry] = []
             next_position = self._next_position
