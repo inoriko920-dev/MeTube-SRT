@@ -12,7 +12,7 @@ _RESOLUTION_SORT: dict[QualityPreset, str] = {
 }
 
 
-def build_resolve_options() -> dict[str, object]:
+def build_resolve_options(*, tolerate_unavailable_entries: bool = False) -> dict[str, object]:
     """Return metadata-only yt-dlp options for the isolated worker.
 
     Auto-translated YouTube subtitles are intentionally skipped at extraction time.
@@ -24,7 +24,7 @@ def build_resolve_options() -> dict[str, object]:
         "no_warnings": True,
         "noprogress": True,
         "extract_flat": False,
-        "ignoreerrors": True,
+        "ignoreerrors": tolerate_unavailable_entries,
         "extractor_args": {"youtube": {"skip": ["translated_subs"]}},
     }
 

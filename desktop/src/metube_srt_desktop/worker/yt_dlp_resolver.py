@@ -75,6 +75,14 @@ def _extract_subtitle_tracks(raw_info: Mapping[str, object]) -> tuple[SubtitleTr
     return tuple(tracks)
 
 
+def is_collection_url(source_url: str) -> bool:
+    try:
+        _classify_collection_url(source_url)
+    except ValueError:
+        return False
+    return True
+
+
 def _classify_collection_url(source_url: str) -> SourceKind:
     parsed = urlsplit(source_url)
     query = parse_qs(parsed.query)

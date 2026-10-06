@@ -71,6 +71,12 @@ def test_subtitle_only_options_do_not_redownload_media() -> None:
 
 
 def test_resolve_options_tolerate_unavailable_collection_entries() -> None:
-    resolve = build_resolve_options()
+    resolve = build_resolve_options(tolerate_unavailable_entries=True)
 
     assert resolve["ignoreerrors"] is True
+
+
+def test_resolve_options_keep_single_video_errors_strict() -> None:
+    resolve = build_resolve_options()
+
+    assert resolve["ignoreerrors"] is False

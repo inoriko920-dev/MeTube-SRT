@@ -16,7 +16,7 @@ from metube_srt_desktop.worker.yt_dlp_options import (
     build_resolve_options,
     build_subtitle_only_options,
 )
-from metube_srt_desktop.worker.yt_dlp_resolver import map_resolved_source
+from metube_srt_desktop.worker.yt_dlp_resolver import is_collection_url, map_resolved_source
 
 WorkerEmit = Callable[[WorkerEventType, Mapping[str, object]], None]
 
@@ -58,7 +58,11 @@ def resolve_source_live(
     """Run metadata extraction through yt-dlp without downloading media."""
 
     factory = ydl_factory or _default_ydl_factory
-    with factory(build_resolve_options()) as ydl:
+    with factory(
+        build_resolve_options(
+            tolerate_unavailable_entries=is_collection_url(request.source_url)
+        )
+    ) as ydl:
         raw_info = ydl.extract_info(request.source_url, download=False)
 
     if not isinstance(raw_info, Mapping):
