@@ -24,7 +24,9 @@ class KeyringGeminiSecretStore(CredentialSecretPort):
         try:
             return keyring.get_password(_SERVICE_NAME, profile_id)
         except KeyringError as exc:
-            raise CredentialStorageError("API key tidak dapat dibaca dari penyimpanan aman.") from exc
+            raise CredentialStorageError(
+                "API key tidak dapat dibaca dari penyimpanan aman."
+            ) from exc
 
     def delete_secret(self, profile_id: str) -> None:
         try:
@@ -32,4 +34,6 @@ class KeyringGeminiSecretStore(CredentialSecretPort):
         except PasswordDeleteError:
             return
         except KeyringError as exc:
-            raise CredentialStorageError("API key tidak dapat dihapus dari penyimpanan aman.") from exc
+            raise CredentialStorageError(
+                "API key tidak dapat dihapus dari penyimpanan aman."
+            ) from exc
