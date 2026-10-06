@@ -9,6 +9,14 @@ class CredentialStorageError(RuntimeError):
     """Application-owned credential storage failure."""
 
 
+class CredentialCooldownError(RuntimeError):
+    """The selected Gemini credential is intentionally cooling down."""
+
+    def __init__(self, retry_after_seconds: int) -> None:
+        super().__init__("Gemini credential is cooling down")
+        self.retry_after_seconds = max(1, retry_after_seconds)
+
+
 class CredentialSecretPort(Protocol):
     def set_secret(self, profile_id: str, secret: str) -> None: ...
 

@@ -11,6 +11,7 @@ class GeminiKeyProfile:
     priority: int
     status: str = "Belum diuji"
     last_tested_at: str | None = None
+    cooldown_until: str | None = None
     secret_available: bool | None = None
 
     def __post_init__(self) -> None:
