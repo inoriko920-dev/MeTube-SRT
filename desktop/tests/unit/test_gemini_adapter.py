@@ -181,7 +181,6 @@ def test_generate_reply_maps_registry_cooldown_without_provider_call() -> None:
     assert calls == 1
 
 
-
 def test_generate_reply_retries_transient_503_on_same_key(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
