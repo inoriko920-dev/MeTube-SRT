@@ -60,7 +60,7 @@ These cannot be converted into a truthful PASS from GitHub-hosted deterministic 
 - actual Windows ACL-denied destination behavior on a restricted filesystem;
 - real Gemini request with a valid user-configured API key.
 
-Hosted YouTube `LOGIN_REQUIRED` / anti-bot behavior remains an environment limitation, not evidence of an application bug and not a live PASS.
+Fresh hosted live qualification run `37514921314` reproduced the environment block after tool setup/verification passed: YouTube requested verification/login. Evidence artifact `11436712597` (`desktop-live-ytdlp-qualification`, digest `sha256:79ac3561798caaf4d85e7911a9082a56bd321a55284aae13849d47e4125cd78e`). This remains an environment limitation, not evidence of an application bug and not a live PASS.
 
 ## Release posture
 

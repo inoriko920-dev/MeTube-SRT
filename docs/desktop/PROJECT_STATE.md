@@ -81,7 +81,7 @@ This proves the portable preview package can be built from the stabilized code. 
 - **WINDOWS_BUILD:** PASS.
 - **VERIFIED_WINDOWS behavioral qualification:** PENDING on a normal Windows PC.
 - **VERIFIED_LIVE YouTube:** not declared PASS.
-- Prior hosted-runner live qualification remains **BLOCKED_ENVIRONMENT** when YouTube returns `LOGIN_REQUIRED` / anti-bot responses.
+- Fresh hosted live qualification run **37514921314** remains **BLOCKED_ENVIRONMENT**: external tools passed setup/verification, then YouTube requested verification/login. Evidence artifact: `11436712597`.
 
 Automated Windows/fixture qualification now also covers:
 
