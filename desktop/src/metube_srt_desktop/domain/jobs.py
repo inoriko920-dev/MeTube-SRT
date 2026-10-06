@@ -25,6 +25,80 @@ class JobState(StrEnum):
     INTERRUPTED = "interrupted"
 
 
+_TERMINAL_JOB_STATES = {
+    JobState.SUCCEEDED,
+    JobState.FAILED,
+    JobState.CANCELLED,
+    JobState.INTERRUPTED,
+}
+
+_ALLOWED_JOB_TRANSITIONS: dict[JobState, frozenset[JobState]] = {
+    JobState.QUEUED: frozenset(
+        {
+            JobState.RESOLVING,
+            JobState.RUNNING,
+            JobState.CANCELLING,
+            JobState.CANCELLED,
+            JobState.INTERRUPTED,
+        }
+    ),
+    JobState.RESOLVING: frozenset(
+        {
+            JobState.RUNNING,
+            JobState.CANCELLING,
+            JobState.FAILED,
+            JobState.CANCELLED,
+            JobState.INTERRUPTED,
+        }
+    ),
+    JobState.RUNNING: frozenset(
+        {
+            JobState.POSTPROCESSING,
+            JobState.CANCELLING,
+            JobState.SUCCEEDED,
+            JobState.FAILED,
+            JobState.CANCELLED,
+            JobState.INTERRUPTED,
+        }
+    ),
+    JobState.POSTPROCESSING: frozenset(
+        {
+            JobState.CANCELLING,
+            JobState.SUCCEEDED,
+            JobState.FAILED,
+            JobState.CANCELLED,
+            JobState.INTERRUPTED,
+        }
+    ),
+    JobState.CANCELLING: frozenset(
+        {
+            JobState.SUCCEEDED,
+            JobState.FAILED,
+            JobState.CANCELLED,
+            JobState.INTERRUPTED,
+        }
+    ),
+    JobState.SUCCEEDED: frozenset(),
+    JobState.FAILED: frozenset(),
+    JobState.CANCELLED: frozenset(),
+    JobState.INTERRUPTED: frozenset(),
+}
+
+
+def is_terminal_job_state(state: JobState) -> bool:
+    return state in _TERMINAL_JOB_STATES
+
+
+def transition_job_state(current: JobState, target: JobState) -> JobState:
+    """Validate one canonical job-state transition."""
+
+    if current is target:
+        return current
+    if target not in _ALLOWED_JOB_TRANSITIONS[current]:
+        raise ValueError(f"invalid job state transition: {current.value} -> {target.value}")
+    return target
+
+
 class QualityPreset(StrEnum):
     BEST = "best"
     P1080 = "1080p"

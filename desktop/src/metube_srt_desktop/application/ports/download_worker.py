@@ -6,6 +6,10 @@ from typing import Protocol
 from metube_srt_desktop.application.dto.worker_protocol import WorkerEnvelope
 
 
+class DownloadWorkerError(RuntimeError):
+    """Application-owned failure boundary for parent worker execution."""
+
+
 class DownloadWorkerPort(Protocol):
     """Parent-side contract for one disposable download worker run."""
 

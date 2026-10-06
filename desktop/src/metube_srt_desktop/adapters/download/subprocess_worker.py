@@ -12,7 +12,10 @@ from metube_srt_desktop.application.dto.worker_protocol import (
     WorkerEnvelope,
     WorkerEventType,
 )
-from metube_srt_desktop.application.ports.download_worker import DownloadWorkerPort
+from metube_srt_desktop.application.ports.download_worker import (
+    DownloadWorkerError,
+    DownloadWorkerPort,
+)
 
 _TERMINAL_EVENTS = {
     WorkerEventType.SUCCEEDED,
@@ -21,7 +24,7 @@ _TERMINAL_EVENTS = {
 }
 
 
-class WorkerAdapterError(RuntimeError):
+class WorkerAdapterError(DownloadWorkerError):
     """Base error for parent-side worker process failures."""
 
 
