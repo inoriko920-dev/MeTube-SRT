@@ -12,6 +12,7 @@ from metube_srt_desktop.application.ports.credentials import (
 )
 
 _MAX_PROFILES = 100
+_INVALID_PROFILE_STATUSES = {"tidak valid", "invalid"}
 
 
 class GeminiCredentialRegistry:
@@ -105,6 +106,8 @@ class GeminiCredentialRegistry:
     def _active_profile_and_secret(self) -> tuple[GeminiKeyProfile, str] | None:
         for profile in self._profiles.list_profiles():
             if not profile.enabled:
+                continue
+            if profile.status.strip().casefold() in _INVALID_PROFILE_STATUSES:
                 continue
             secret = self._secrets.get_secret(profile.profile_id)
             if secret is not None and secret.strip():

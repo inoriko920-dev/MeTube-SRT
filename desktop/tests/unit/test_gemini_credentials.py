@@ -154,3 +154,19 @@ def test_active_profile_skips_orphaned_metadata_without_secret() -> None:
 
     assert registry.active_profile() == valid
     assert registry.active_secret() == "fake-key-valid-xxxxxxxxxxxxxxxxxxxxxxxx"
+
+
+
+def test_invalid_profile_is_skipped_for_next_usable_key() -> None:
+    profiles = MemoryProfiles()
+    secrets = MemorySecrets()
+    registry = GeminiCredentialRegistry(profiles, secrets)
+
+    first = registry.add_profile("Pertama", "fake-key-first-xxxxxxxxxxxxxxxxxxxx")
+    second = registry.add_profile("Kedua", "fake-key-second-xxxxxxxxxxxxxxxxxxx")
+
+    registry.mark_active_status("Tidak valid")
+
+    assert profiles.items[first.profile_id].status == "Tidak valid"
+    assert registry.active_profile() == second
+    assert registry.active_secret() == "fake-key-second-xxxxxxxxxxxxxxxxxxx"
