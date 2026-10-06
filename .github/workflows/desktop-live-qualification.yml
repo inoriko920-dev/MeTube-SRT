@@ -58,6 +58,13 @@ jobs:
           ffmpeg -version | Select-Object -First 1
           ffprobe -version | Select-Object -First 1
 
+      - name: Diagnose upstream YouTube access
+        continue-on-error: true
+        run: >-
+          uv run yt-dlp -v --skip-download --no-playlist
+          --extractor-args "youtube:skip=translated_subs"
+          "https://www.youtube.com/watch?v=BaW_jenozKc"
+
       - name: Run live yt-dlp qualification
         run: uv run python scripts/qualify_live_ytdlp.py
 
