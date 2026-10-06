@@ -162,8 +162,7 @@ def test_enqueue_button_updates_real_queue_table(qtbot: QtBot) -> None:
 
         qtbot.waitUntil(
             lambda: (
-                len(queue.snapshots()) == 1
-                and queue.snapshots()[0].state is JobState.SUCCEEDED
+                len(queue.snapshots()) == 1 and queue.snapshots()[0].state is JobState.SUCCEEDED
             ),
             timeout=2000,
         )
