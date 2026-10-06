@@ -69,7 +69,7 @@ Acceptance evidence:
 - secret gate: PASS — 0 findings;
 - screenshot artifact: `11363142258`.
 
-## READY
+## IN QUALIFICATION
 
 ### S10-001 — Real download core: resolve, enqueue, video + optional SRT
 
@@ -107,12 +107,17 @@ Acceptance evidence:
 
 **Current qualification status**
 
-- implementation through native UI/runtime composition is complete on PR #5;
-- deterministic core CI is green;
-- GitHub-hosted live YouTube qualification is `BLOCKED_ENVIRONMENT` because upstream yt-dlp itself receives YouTube LOGIN_REQUIRED anti-bot responses;
-- local Windows qualification wrapper/evidence bundle is the next required checkpoint;
-- do not claim S10 live PASS until that evidence succeeds on a normal network.
-
+- ASTRA audit reproduced 7/7 stabilization bugs at baseline `9686ca1`;
+- SOL implemented B01–B07 without UI redesign or legacy runtime changes;
+- stabilized code baseline: `825848fbb2123531b66861a31627ea5e383c5633`;
+- Desktop CI run `37504191788`: SUCCESS — 181 passed plus format/lint/Pyright/import/foundation/self-check/screenshot/secret gates;
+- legacy CI run `37504191498`: SUCCESS;
+- Windows preview build run `37504182757`: SUCCESS;
+- preview artifact id `11431501234`, digest `sha256:cf8331adf59d51a4e64fbf2415663ff16123fe33602570ead2a6246455c684c0`;
+- B01–B07 status: IMPLEMENTED + VERIFIED_FIXTURE;
+- normal-PC behavioral qualification remains PENDING;
+- live YouTube is not declared PASS; hosted-runner anti-bot results remain `BLOCKED_ENVIRONMENT`;
+- S10-001 stays **IN QUALIFICATION**, not DONE/stable, until Windows/live evidence is recorded.
 **ASTRA trigger**
 
 Any architecture-direction change, new top-level module, replacement of the worker boundary, subtitle-policy change, WebEngine/browser dependency, or new material runtime dependency.
