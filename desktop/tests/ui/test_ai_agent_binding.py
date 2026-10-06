@@ -159,3 +159,47 @@ def test_ai_panel_redacts_secret_and_does_not_call_provider(qtbot: QtBot) -> Non
         assert provider.calls == 0
     finally:
         queue.shutdown(wait=True)
+
+
+
+def test_ai_panel_redacts_full_cookie_header_tail(qtbot: QtBot) -> None:
+    class CountingProvider(HumanProvider):
+        def __init__(self) -> None:
+            self.calls = 0
+
+        def generate_reply(
+            self,
+            *,
+            system_instruction: str,
+            messages: tuple[AIChatMessage, ...],
+        ) -> str:
+            self.calls += 1
+            return super().generate_reply(
+                system_instruction=system_instruction,
+                messages=messages,
+            )
+
+    provider = CountingProvider()
+    queue = BoundedDownloadQueue(NoopWorkerFactory())
+    conversation = HumanlikeAIConversation(provider)
+    window = MainWindow(
+        queue=queue,
+        resolver=UnusedResolver(),
+        ai_conversation=conversation,
+    )
+    qtbot.addWidget(window)
+    window.show()
+
+    try:
+        values = ("FAKE_SID_VALUE", "FAKE_HSID_VALUE", "FAKE_SSID_VALUE")
+        window.ai_workspace.prompt.setPlainText(
+            f"Cookie: SID={values[0]}; HSID={values[1]}; SSID={values[2]}"
+        )
+        window.ai_workspace.send_button.click()
+
+        transcript = window.ai_workspace.transcript.toPlainText()
+        assert all(value not in transcript for value in values)
+        assert "SECRET DISEMBUNYIKAN" in transcript
+        assert provider.calls == 0
+    finally:
+        queue.shutdown(wait=True)

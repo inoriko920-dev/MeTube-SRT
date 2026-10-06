@@ -164,3 +164,62 @@ def test_conversation_delegates_provider_cancellation() -> None:
     conversation.cancel_current()
 
     assert provider.cancelled is True
+
+
+
+def test_cookie_header_redacts_every_cookie_pair() -> None:
+    sid = "FAKE_SID_VALUE"
+    hsid = "FAKE_HSID_VALUE"
+    ssid = "FAKE_SSID_VALUE"
+
+    result = redact_sensitive_text(f"Cookie: SID={sid}; HSID={hsid}; SSID={ssid}")
+
+    assert result.secret_detected is True
+    assert result.text == "Cookie=[SECRET DISEMBUNYIKAN]"
+    assert sid not in result.text
+    assert hsid not in result.text
+    assert ssid not in result.text
+
+
+def test_cookie_header_redacts_quoted_and_multiline_tail() -> None:
+    first = "FAKE_FIRST_COOKIE"
+    second = "FAKE_SECOND_COOKIE"
+    text = (
+        f'cookie: "SID={first}; HSID=quoted"\n'
+        f"  SSID={second}; SAPISID=another-value\n"
+        "Authorization: harmless-placeholder"
+    )
+
+    result = redact_sensitive_text(text)
+
+    assert result.secret_detected is True
+    assert first not in result.text
+    assert second not in result.text
+    assert "another-value" not in result.text
+    assert "Authorization=" in result.text
+
+
+def test_cookie_word_without_header_value_is_not_over_redacted() -> None:
+    text = "Saya ingin tahu cara kerja cookie browser tanpa menempelkan nilainya."
+
+    result = redact_sensitive_text(text)
+
+    assert result.secret_detected is False
+    assert result.text == text
+
+
+def test_cookie_secret_is_blocked_and_history_contains_no_raw_tail() -> None:
+    provider = FakeProvider()
+    conversation = HumanlikeAIConversation(provider)
+    raw_values = ("FAKE_SID_VALUE", "FAKE_HSID_VALUE", "FAKE_SSID_VALUE")
+    message = (
+        f"Cookie: SID={raw_values[0]}; HSID={raw_values[1]}; SSID={raw_values[2]}"
+    )
+
+    reply = conversation.reply(message, AIAgentContext())
+
+    assert reply.error_code == "secret_blocked"
+    assert provider.calls == []
+    serialized = "\n".join(item.text for item in conversation.history())
+    assert all(value not in serialized for value in raw_values)
+    assert "SECRET DISEMBUNYIKAN" in serialized
