@@ -21,7 +21,7 @@ class _CheckResult:
 
 
 class _CheckSignals(QObject):
-    finished = Signal(object)
+    finished = Signal(object, object)
 
 
 class _CheckTask(QRunnable):
@@ -37,7 +37,7 @@ class _CheckTask(QRunnable):
             result = _CheckResult(None)
         except Exception as exc:
             result = _CheckResult(exc)
-        self.signals.finished.emit(result)
+        self.signals.finished.emit(self, result)
 
 
 class GeminiCredentialsController(QObject):
@@ -147,17 +147,17 @@ class GeminiCredentialsController(QObject):
         self._page.test_button.setDisabled(True)
         task = _CheckTask(self._provider.check)
 
-        def finished(raw: object) -> None:
-            try:
-                if self._closed:
-                    return
-                self._handle_check(cast(_CheckResult, raw))
-            finally:
-                self._tasks.discard(task)
-
-        task.signals.finished.connect(finished)
+        task.signals.finished.connect(self._task_finished)
         self._tasks.add(task)
         self._thread_pool.start(task)
+
+    @Slot(object, object)
+    def _task_finished(self, raw_task: object, raw_result: object) -> None:
+        task = cast(_CheckTask, raw_task)
+        self._tasks.discard(task)
+        if self._closed:
+            return
+        self._handle_check(cast(_CheckResult, raw_result))
 
     def _handle_check(self, result: _CheckResult) -> None:
         self._page.test_button.setDisabled(False)

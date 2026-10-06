@@ -50,7 +50,7 @@ class _AsyncResult:
 
 
 class _TaskSignals(QObject):
-    finished = Signal(object)
+    finished = Signal(object, object)
 
 
 class _ApplicationTask(QRunnable):
@@ -65,7 +65,7 @@ class _ApplicationTask(QRunnable):
             result = _AsyncResult(self._call(), None)
         except Exception as exc:  # presentation boundary must not display raw exceptions
             result = _AsyncResult(None, exc)
-        self.signals.finished.emit(result)
+        self.signals.finished.emit(self, result)
 
 
 class DownloadQueueController(QObject):
@@ -95,6 +95,7 @@ class DownloadQueueController(QObject):
         self._busy = False
         self._closed = False
         self._tasks: set[_ApplicationTask] = set()
+        self._task_handlers: dict[_ApplicationTask, Callable[[_AsyncResult], None]] = {}
 
         self._download_page.resolve_button.clicked.connect(self.resolve_current_url)
         self._download_page.enqueue_button.clicked.connect(self.enqueue_current_url)
@@ -195,18 +196,19 @@ class DownloadQueueController(QObject):
         if self._closed:
             return
         task = _ApplicationTask(call)
-
-        def finished(raw: object) -> None:
-            try:
-                if self._closed:
-                    return
-                handler(cast(_AsyncResult, raw))
-            finally:
-                self._tasks.discard(task)
-
-        task.signals.finished.connect(finished)
+        task.signals.finished.connect(self._task_finished)
+        self._task_handlers[task] = handler
         self._tasks.add(task)
         self._thread_pool.start(task)
+
+    @Slot(object, object)
+    def _task_finished(self, raw_task: object, raw_result: object) -> None:
+        task = cast(_ApplicationTask, raw_task)
+        handler = self._task_handlers.pop(task, None)
+        self._tasks.discard(task)
+        if self._closed or handler is None:
+            return
+        handler(cast(_AsyncResult, raw_result))
 
     def _handle_resolve_result(self, result: _AsyncResult) -> None:
         self._set_busy(False)
@@ -267,6 +269,7 @@ class DownloadQueueController(QObject):
         if self._closed:
             return
         self._closed = True
+        self._task_handlers.clear()
         self._poll_timer.stop()
         if isinstance(self._resolver, SourceResolveCancellationPort):
             self._resolver.cancel_current()

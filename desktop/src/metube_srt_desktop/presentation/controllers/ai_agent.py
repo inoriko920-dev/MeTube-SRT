@@ -21,7 +21,7 @@ class _AIResult:
 
 
 class _AISignals(QObject):
-    finished = Signal(object)
+    finished = Signal(object, object)
 
 
 class _AITask(QRunnable):
@@ -36,7 +36,7 @@ class _AITask(QRunnable):
             result = _AIResult(self._call(), None)
         except Exception as exc:
             result = _AIResult(None, exc)
-        self.signals.finished.emit(result)
+        self.signals.finished.emit(self, result)
 
 
 class AIAgentController(QObject):
@@ -84,17 +84,17 @@ class AIAgentController(QObject):
         context = self._build_context()
         task = _AITask(lambda: self._conversation.reply(text, context))
 
-        def finished(raw: object) -> None:
-            try:
-                if self._closed:
-                    return
-                self._handle_result(cast(_AIResult, raw))
-            finally:
-                self._tasks.discard(task)
-
-        task.signals.finished.connect(finished)
+        task.signals.finished.connect(self._task_finished)
         self._tasks.add(task)
         self._thread_pool.start(task)
+
+    @Slot(object, object)
+    def _task_finished(self, raw_task: object, raw_result: object) -> None:
+        task = cast(_AITask, raw_task)
+        self._tasks.discard(task)
+        if self._closed:
+            return
+        self._handle_result(cast(_AIResult, raw_result))
 
     def _handle_result(self, result: _AIResult) -> None:
         self._busy = False
