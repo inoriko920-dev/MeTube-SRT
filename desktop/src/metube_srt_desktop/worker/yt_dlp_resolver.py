@@ -14,6 +14,8 @@ from metube_srt_desktop.domain.subtitles import SubtitleKind, SubtitleTrack
 
 _ORIGINAL_AUTO_SUFFIX = "-orig"
 _CHANNEL_PREFIXES = ("/@", "/channel/", "/c/", "/user/")
+_MAX_COLLECTION_DEPTH = 8
+_MAX_COLLECTION_NODES = 20_000
 
 
 def map_resolved_source(request: ResolveRequest, raw_info: Mapping[str, object]) -> ResolvedSource:
@@ -119,15 +121,61 @@ def _map_collection_items(value: object) -> tuple[ResolvedItem, ...]:
         return ()
 
     items: list[ResolvedItem] = []
-    for entry in cast(Sequence[object], value):
-        if not isinstance(entry, Mapping):
-            continue
-        try:
-            items.append(_map_item(cast(Mapping[str, object], entry)))
-        except ValueError:
-            # Deleted/private/unavailable playlist entries can have partial metadata.
-            continue
+    seen: set[tuple[str, str]] = set()
+    visited_nodes = 0
+
+    def walk(entries: object, *, depth: int) -> None:
+        nonlocal visited_nodes
+        if depth > _MAX_COLLECTION_DEPTH:
+            raise ValueError(
+                f"resolved collection exceeds maximum nesting depth {_MAX_COLLECTION_DEPTH}"
+            )
+        if not _is_entry_sequence(entries):
+            return
+
+        for raw_entry in cast(Sequence[object], entries):
+            if not isinstance(raw_entry, Mapping):
+                continue
+
+            visited_nodes += 1
+            if visited_nodes > _MAX_COLLECTION_NODES:
+                raise ValueError(
+                    f"resolved collection exceeds maximum item count {_MAX_COLLECTION_NODES}"
+                )
+
+            entry = cast(Mapping[str, object], raw_entry)
+            nested_entries = entry.get("entries")
+            if _is_entry_sequence(nested_entries):
+                walk(nested_entries, depth=depth + 1)
+                continue
+
+            try:
+                item = _map_item(entry)
+            except ValueError:
+                # Deleted/private/unavailable leaf entries can have partial metadata.
+                continue
+
+            identity = _extractor_video_identity(entry, item.video_id)
+            if identity in seen:
+                continue
+            seen.add(identity)
+            items.append(item)
+
+    walk(value, depth=0)
     return tuple(items)
+
+
+def _extractor_video_identity(
+    raw_info: Mapping[str, object],
+    video_id: str,
+) -> tuple[str, str]:
+    extractor = ""
+    for key in ("extractor_key", "ie_key", "extractor"):
+        candidate = raw_info.get(key)
+        if isinstance(candidate, str) and candidate.strip():
+            extractor = candidate.strip().casefold()
+            break
+    return extractor, video_id
 
 
 def _mapping_keys(value: object) -> tuple[str, ...]:
