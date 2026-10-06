@@ -59,9 +59,7 @@ def resolve_source_live(
 
     factory = ydl_factory or _default_ydl_factory
     with factory(
-        build_resolve_options(
-            tolerate_unavailable_entries=is_collection_url(request.source_url)
-        )
+        build_resolve_options(tolerate_unavailable_entries=is_collection_url(request.source_url))
     ) as ydl:
         raw_info = ydl.extract_info(request.source_url, download=False)
 

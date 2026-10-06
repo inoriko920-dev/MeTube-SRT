@@ -69,7 +69,6 @@ def test_subtitle_only_options_do_not_redownload_media() -> None:
     assert subtitle["subtitleslangs"] == ["id"]
 
 
-
 def test_resolve_options_tolerate_unavailable_collection_entries() -> None:
     resolve = build_resolve_options(tolerate_unavailable_entries=True)
 
