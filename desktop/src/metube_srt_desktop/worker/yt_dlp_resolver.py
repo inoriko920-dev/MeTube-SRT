@@ -19,10 +19,12 @@ _CHANNEL_PREFIXES = ("/@", "/channel/", "/c/", "/user/")
 def map_resolved_source(request: ResolveRequest, raw_info: Mapping[str, object]) -> ResolvedSource:
     """Map sanitized yt-dlp metadata to the application-owned resolve DTO."""
 
-    entries = _mapping_entries(raw_info.get("entries"))
-    if entries:
+    raw_entries = raw_info.get("entries")
+    if _is_entry_sequence(raw_entries):
         kind = _classify_collection_url(request.source_url)
-        items = tuple(_map_item(entry) for entry in entries)
+        items = _map_collection_items(raw_entries)
+        if not items:
+            raise ValueError("resolved collection contains no downloadable video items")
     else:
         kind = SourceKind.VIDEO
         items = (_map_item(raw_info),)
@@ -100,15 +102,24 @@ def _required_string(raw_info: Mapping[str, object], key: str) -> str:
     return value
 
 
-def _mapping_entries(value: object) -> tuple[Mapping[str, object], ...]:
-    if not isinstance(value, Sequence) or isinstance(value, (str, bytes, bytearray)):
+def _is_entry_sequence(value: object) -> bool:
+    return isinstance(value, Sequence) and not isinstance(value, (str, bytes, bytearray))
+
+
+def _map_collection_items(value: object) -> tuple[ResolvedItem, ...]:
+    if not _is_entry_sequence(value):
         return ()
 
-    entries: list[Mapping[str, object]] = []
+    items: list[ResolvedItem] = []
     for entry in cast(Sequence[object], value):
-        if isinstance(entry, Mapping):
-            entries.append(cast(Mapping[str, object], entry))
-    return tuple(entries)
+        if not isinstance(entry, Mapping):
+            continue
+        try:
+            items.append(_map_item(cast(Mapping[str, object], entry)))
+        except ValueError:
+            # Deleted/private/unavailable playlist entries can have partial metadata.
+            continue
+    return tuple(items)
 
 
 def _mapping_keys(value: object) -> tuple[str, ...]:
