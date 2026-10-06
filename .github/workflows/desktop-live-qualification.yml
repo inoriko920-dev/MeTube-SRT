@@ -2,6 +2,11 @@ name: Desktop Live yt-dlp Qualification
 
 on:
   workflow_dispatch:
+  push:
+    branches:
+      - "step10/download-core"
+    paths:
+      - ".github/workflows/desktop-live-qualification.yml"
 
 permissions:
   contents: read
