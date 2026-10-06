@@ -137,6 +137,13 @@ Jangan memindahkan hanya file EXE. Pertahankan seluruh isi folder portable.
         throw "Packaged desktop self-check failed with exit code $($Process.ExitCode)."
     }
 
+    Write-Host "=== Smoke Windows credential backend ==="
+    $CredentialProcess = Start-Process -FilePath (Join-Path $StageRoot "MeTube-SRT.exe") `
+        -ArgumentList "--credential-self-check" -Wait -PassThru
+    if ($CredentialProcess.ExitCode -ne 0) {
+        throw "Packaged credential self-check failed with exit code $($CredentialProcess.ExitCode)."
+    }
+
     if (Test-Path $ZipPath) {
         Remove-Item $ZipPath -Force
     }

@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import os
 from collections.abc import Callable
+from contextlib import suppress
 from typing import Protocol, cast
 
 from google import genai
@@ -9,6 +10,7 @@ from google.genai import errors, types
 
 from metube_srt_desktop.application.dto.ai_chat import AIChatMessage, AIChatRole
 from metube_srt_desktop.application.ports.ai_provider import AIProviderError, AIProviderPort
+from metube_srt_desktop.application.ports.credentials import CredentialStorageError
 
 _DEFAULT_MODEL = "gemini-2.5-flash"
 
@@ -49,6 +51,7 @@ class GeminiAdapter(AIProviderPort):
     ) -> str:
         api_key = self._require_api_key()
         contents = [_to_content(message) for message in messages]
+        client: genai.Client | None = None
         try:
             client = genai.Client(api_key=api_key)
             models = cast(_GenerateModels, client.models)
@@ -73,6 +76,10 @@ class GeminiAdapter(AIProviderPort):
                 "provider_error",
                 "Gemini tidak dapat memproses permintaan.",
             ) from exc
+        finally:
+            if client is not None:
+                with suppress(Exception):
+                    client.close()
 
         text = response.text
         if text is None or not text.strip():
@@ -81,6 +88,7 @@ class GeminiAdapter(AIProviderPort):
 
     def check(self) -> None:
         api_key = self._require_api_key()
+        client: genai.Client | None = None
         try:
             client = genai.Client(api_key=api_key)
             models = cast(_GenerateModels, client.models)
@@ -98,12 +106,22 @@ class GeminiAdapter(AIProviderPort):
             raise AIProviderError("network_error", "Gemini tidak dapat dijangkau.") from exc
         except Exception as exc:
             raise AIProviderError("provider_error", "Gemini tidak dapat diuji.") from exc
+        finally:
+            if client is not None:
+                with suppress(Exception):
+                    client.close()
 
         if response.text is None or not response.text.strip():
             raise AIProviderError("empty_response", "Gemini tidak mengembalikan jawaban.")
 
     def _require_api_key(self) -> str:
-        api_key = self._api_key_source()
+        try:
+            api_key = self._api_key_source()
+        except CredentialStorageError as exc:
+            raise AIProviderError(
+                "credential_storage_error",
+                "Penyimpanan aman API key tidak dapat diakses.",
+            ) from exc
         if api_key is None or not api_key.strip():
             raise AIProviderError(
                 "missing_api_key",
@@ -121,7 +139,10 @@ def _to_content(message: AIChatMessage) -> types.Content:
 
 
 def _map_api_error(error: errors.APIError) -> AIProviderError:
-    code = int(error.code)
+    try:
+        code = int(error.code)
+    except (TypeError, ValueError):
+        code = 0
     if code in {401, 403}:
         return AIProviderError("invalid_api_key", "API key Gemini ditolak.")
     if code == 429:

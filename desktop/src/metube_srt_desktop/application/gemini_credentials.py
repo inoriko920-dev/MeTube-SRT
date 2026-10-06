@@ -61,27 +61,32 @@ class GeminiCredentialRegistry:
         clean_keys = tuple(key.strip() for key in raw_keys if key.strip())
         if not clean_keys:
             raise ValueError("File TXT tidak berisi API key.")
+        if any(len(key) < 20 for key in clean_keys):
+            raise ValueError("Salah satu API key Gemini terlihat tidak valid.")
+        if len(set(clean_keys)) != len(clean_keys):
+            raise ValueError("File TXT berisi API key yang sama lebih dari sekali.")
+
         existing_count = len(self._profiles.list_profiles())
         if existing_count + len(clean_keys) > _MAX_PROFILES:
             raise ValueError("Jumlah API key akan melebihi batas 100.")
 
         created: list[GeminiKeyProfile] = []
-        for index, key in enumerate(clean_keys, start=1):
-            profile = self.add_profile(f"Gemini {existing_count + index:02d}", key)
-            created.append(profile)
+        try:
+            for index, key in enumerate(clean_keys, start=1):
+                profile = self.add_profile(f"Gemini {existing_count + index:02d}", key)
+                created.append(profile)
+        except Exception:
+            self._rollback_profiles(created)
+            raise
         return tuple(created)
 
     def active_profile(self) -> GeminiKeyProfile | None:
-        for profile in self._profiles.list_profiles():
-            if profile.enabled:
-                return profile
-        return None
+        active = self._active_profile_and_secret()
+        return None if active is None else active[0]
 
     def active_secret(self) -> str | None:
-        profile = self.active_profile()
-        if profile is None:
-            return None
-        return self._secrets.get_secret(profile.profile_id)
+        active = self._active_profile_and_secret()
+        return None if active is None else active[1]
 
     def mark_active_status(self, status: str) -> None:
         profile = self.active_profile()
@@ -96,3 +101,28 @@ class GeminiCredentialRegistry:
             last_tested_at=datetime.now(UTC).isoformat(timespec="seconds"),
         )
         self._profiles.save_profile(updated)
+
+    def _active_profile_and_secret(self) -> tuple[GeminiKeyProfile, str] | None:
+        for profile in self._profiles.list_profiles():
+            if not profile.enabled:
+                continue
+            secret = self._secrets.get_secret(profile.profile_id)
+            if secret is not None and secret.strip():
+                return profile, secret.strip()
+        return None
+
+    def _rollback_profiles(self, profiles: list[GeminiKeyProfile]) -> None:
+        rollback_failed = False
+        for profile in reversed(profiles):
+            try:
+                self._profiles.delete_profile(profile.profile_id)
+            except Exception:
+                rollback_failed = True
+            try:
+                self._secrets.delete_secret(profile.profile_id)
+            except Exception:
+                rollback_failed = True
+        if rollback_failed:
+            raise CredentialStorageError(
+                "Import API key gagal dan rollback tidak selesai sepenuhnya."
+            )

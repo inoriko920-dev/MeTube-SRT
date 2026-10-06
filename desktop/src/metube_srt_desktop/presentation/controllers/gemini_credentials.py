@@ -118,11 +118,20 @@ class GeminiCredentialsController(QObject):
 
     @Slot()
     def test_active_key(self) -> None:
-        if self._registry.active_profile() is None:
+        try:
+            active_profile = self._registry.active_profile()
+        except CredentialStorageError:
+            QMessageBox.warning(
+                self._page,
+                "API Gemini",
+                "Penyimpanan aman Windows belum bisa diakses.",
+            )
+            return
+        if active_profile is None:
             QMessageBox.information(
                 self._page,
                 "API Gemini",
-                "Belum ada API key aktif. Tambahkan key dulu.",
+                "Belum ada API key aktif yang tersimpan. Tambahkan key dulu.",
             )
             return
 
@@ -142,7 +151,16 @@ class GeminiCredentialsController(QObject):
     def _handle_check(self, result: _CheckResult) -> None:
         self._page.test_button.setDisabled(False)
         if result.error is None:
-            self._registry.mark_active_status("Aktif")
+            try:
+                self._registry.mark_active_status("Aktif")
+            except CredentialStorageError:
+                self.refresh()
+                QMessageBox.warning(
+                    self._page,
+                    "API Gemini",
+                    "API key bisa dipakai, tetapi statusnya tidak dapat disimpan.",
+                )
+                return
             self.refresh()
             QMessageBox.information(self._page, "API Gemini", "API key aktif dan bisa digunakan.")
             return

@@ -128,4 +128,9 @@ def _friendly_provider_failure(error_code: str) -> str:
         )
     if error_code == "network_error":
         return "Saya belum bisa terhubung ke Gemini. Cek koneksi internet lalu coba lagi."
+    if error_code == "credential_storage_error":
+        return (
+            "API key tersimpan di Windows, tetapi penyimpanan amannya belum bisa diakses. "
+            "Coba buka menu API Gemini lalu tes key aktif."
+        )
     return "Saya belum bisa menghubungi Gemini sekarang. Coba lagi sebentar."
