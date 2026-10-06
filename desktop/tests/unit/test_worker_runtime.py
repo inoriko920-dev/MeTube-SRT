@@ -266,10 +266,12 @@ def test_download_progress_events_are_throttled_without_delaying_cancel(
                     )
                 typed_hook({"status": "finished"})
 
+            output_path = tmp_path / "Video [abc].mp4"
+            output_path.write_bytes(b"video")
             return {
                 "id": "abc",
                 "title": "Video",
-                "filepath": str(tmp_path / "Video [abc].mp4"),
+                "filepath": str(output_path),
             }
 
     monkeypatch.setattr(ytdlp_runtime, "monotonic", lambda: 100.0)
@@ -344,7 +346,6 @@ def test_subtitle_failure_warns_but_keeps_successful_video(tmp_path: Path) -> No
     assert events[-1].event_type is WorkerEventType.SUCCEEDED
     warning = next(event for event in events if event.event_type is WorkerEventType.WARNING)
     assert "video tetap disimpan" in str(warning.payload["message"]).lower()
-
 
 
 def test_subtitle_only_metadata_cannot_announce_fake_media_path(tmp_path: Path) -> None:
@@ -426,7 +427,9 @@ def test_existing_srt_is_announced_with_media_without_warning(tmp_path: Path) ->
         def extract_info(self, url: str, *, download: bool) -> object:
             if self.options.get("skip_download") is True:
                 subtitle_path = tmp_path / "Video [abc].id.srt"
-                subtitle_path.write_text("1\n00:00:00,000 --> 00:00:01,000\nHalo\n", encoding="utf-8")
+                subtitle_path.write_text(
+                    "1\n00:00:00,000 --> 00:00:01,000\nHalo\n", encoding="utf-8"
+                )
                 return {
                     "id": "abc",
                     "title": "Video",
