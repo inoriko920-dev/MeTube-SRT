@@ -1,4 +1,4 @@
-from metube_srt_desktop.application.dto.download import ResolveRequest, ResolvedItem, ResolvedSource
+from metube_srt_desktop.application.dto.download import ResolvedItem, ResolvedSource, ResolveRequest
 from metube_srt_desktop.domain.jobs import JobSpec, QualityPreset, SourceKind
 from metube_srt_desktop.domain.subtitles import SubtitleKind, SubtitleTrack
 from metube_srt_desktop.worker.protocol import (

@@ -6,7 +6,7 @@ from threading import Event
 from types import TracebackType
 from typing import Protocol, cast
 
-from metube_srt_desktop.application.dto.download import ResolveRequest, ResolvedSource
+from metube_srt_desktop.application.dto.download import ResolvedSource, ResolveRequest
 from metube_srt_desktop.application.dto.worker_protocol import WorkerEventType
 from metube_srt_desktop.domain.jobs import JobSpec
 from metube_srt_desktop.worker.yt_dlp_options import build_download_options, build_resolve_options
