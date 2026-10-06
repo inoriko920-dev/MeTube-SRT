@@ -48,9 +48,7 @@ class BoundedDownloadQueue:
         worker_run_id_factory: Callable[[], str] = _new_worker_run_id,
     ) -> None:
         if not 1 <= concurrency <= MAX_DOWNLOAD_CONCURRENCY:
-            raise ValueError(
-                f"concurrency must be between 1 and {MAX_DOWNLOAD_CONCURRENCY}"
-            )
+            raise ValueError(f"concurrency must be between 1 and {MAX_DOWNLOAD_CONCURRENCY}")
 
         self._worker_factory = worker_factory
         self._concurrency = concurrency
