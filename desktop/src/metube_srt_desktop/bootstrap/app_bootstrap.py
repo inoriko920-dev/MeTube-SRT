@@ -21,7 +21,7 @@ def build_runtime_window(
     *,
     data_directory: Path | None = None,
 ) -> tuple[MainWindow, BoundedDownloadQueue]:
-    _configure_portable_tools()
+    configure_portable_tools()
     directory = data_directory or _application_data_directory()
     storage = SQLiteQueueStorage(directory / "app.db")
     worker_factory = SubprocessDownloadWorkerFactory()
@@ -57,7 +57,7 @@ def _application_data_directory() -> Path:
     return Path(raw_path)
 
 
-def _configure_portable_tools() -> None:
+def configure_portable_tools() -> None:
     configured = os.environ.get("METUBE_SRT_TOOLS_DIR", "").strip()
     tools_directory: Path | None = Path(configured).expanduser() if configured else None
 

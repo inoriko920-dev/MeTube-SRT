@@ -63,7 +63,7 @@ class WorkerProcess(Protocol):
 ProcessFactory = Callable[[Sequence[str]], WorkerProcess]
 
 
-def _default_worker_argv() -> tuple[str, ...]:
+def default_worker_argv() -> tuple[str, ...]:
     override = os.environ.get("METUBE_SRT_WORKER_EXE", "").strip()
     if override:
         return (override,)
@@ -114,7 +114,7 @@ class SubprocessWorkerAdapter(DownloadWorkerPort):
 
         self._command = command
         self._worker_argv = tuple(
-            worker_argv if worker_argv is not None else _default_worker_argv()
+            worker_argv if worker_argv is not None else default_worker_argv()
         )
         if not self._worker_argv:
             raise ValueError("worker_argv must not be empty")

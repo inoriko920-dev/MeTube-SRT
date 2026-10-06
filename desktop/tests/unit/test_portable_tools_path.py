@@ -5,10 +5,10 @@ from pathlib import Path
 
 import pytest
 
-from metube_srt_desktop.bootstrap.app_bootstrap import _configure_portable_tools
+from metube_srt_desktop.bootstrap.app_bootstrap import configure_portable_tools
 
 
-def test_configure_portable_tools_prepends_explicit_directory(
+def testconfigure_portable_tools_prepends_explicit_directory(
     monkeypatch: pytest.MonkeyPatch,
     tmp_path: Path,
 ) -> None:
@@ -17,12 +17,12 @@ def test_configure_portable_tools_prepends_explicit_directory(
     monkeypatch.setenv("METUBE_SRT_TOOLS_DIR", str(tools_dir))
     monkeypatch.setenv("PATH", "existing")
 
-    _configure_portable_tools()
+    configure_portable_tools()
 
     assert os.environ["PATH"].split(os.pathsep)[0] == str(tools_dir.resolve())
 
 
-def test_configure_portable_tools_ignores_missing_directory(
+def testconfigure_portable_tools_ignores_missing_directory(
     monkeypatch: pytest.MonkeyPatch,
     tmp_path: Path,
 ) -> None:
@@ -30,6 +30,6 @@ def test_configure_portable_tools_ignores_missing_directory(
     monkeypatch.setenv("METUBE_SRT_TOOLS_DIR", str(missing))
     monkeypatch.setenv("PATH", "existing")
 
-    _configure_portable_tools()
+    configure_portable_tools()
 
     assert os.environ["PATH"] == "existing"
