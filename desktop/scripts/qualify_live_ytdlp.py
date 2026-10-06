@@ -26,7 +26,8 @@ from metube_srt_desktop.application.ports.source_resolver import SourceResolveEr
 from metube_srt_desktop.domain.jobs import JobSpec, QualityPreset, SourceKind
 from metube_srt_desktop.domain.subtitles import SubtitleKind
 
-DEFAULT_SINGLE_URL = "https://www.youtube.com/watch?v=BaW_jenozKc"
+DEFAULT_SINGLE_URL = "https://www.youtube.com/watch?v=gHKT4uU8Zng"
+DEFAULT_SRT_URL = "https://www.youtube.com/watch?v=wsQiKKfKxug"
 DEFAULT_PLAYLIST_URL = "https://www.youtube.com/playlist?list=PLt5yu3-wZAlSLRHmI1qNm0wjyVNWw1pCU"
 DEFAULT_CHANNEL_URL = "https://www.youtube.com/@coletdjnz/videos"
 DEFAULT_CANCEL_URL = "https://www.youtube.com/watch?v=YE7VzlLtp-4"
@@ -231,6 +232,7 @@ def run(output_root: Path) -> dict[str, Any]:
         "single": _env_url("METUBE_LIVE_SINGLE_URL", DEFAULT_SINGLE_URL),
         "playlist": _env_url("METUBE_LIVE_PLAYLIST_URL", DEFAULT_PLAYLIST_URL),
         "channel": _env_url("METUBE_LIVE_CHANNEL_URL", DEFAULT_CHANNEL_URL),
+        "srt": _env_url("METUBE_LIVE_SRT_URL", DEFAULT_SRT_URL),
         "cancel": _env_url("METUBE_LIVE_CANCEL_URL", DEFAULT_CANCEL_URL),
         "failure": _env_url("METUBE_LIVE_FAILURE_URL", DEFAULT_FAILURE_URL),
     }
@@ -246,10 +248,13 @@ def run(output_root: Path) -> dict[str, Any]:
     channel, channel_elapsed = _timed_resolve(resolver, urls["channel"])
     _assert_kind(channel, SourceKind.CHANNEL)
 
+    srt_source, srt_resolve_elapsed = _timed_resolve(resolver, urls["srt"])
+    _assert_kind(srt_source, SourceKind.VIDEO)
+
     cancel_source, cancel_resolve_elapsed = _timed_resolve(resolver, urls["cancel"])
     _assert_kind(cancel_source, SourceKind.VIDEO)
 
-    download_result = _run_small_video_with_srt(single, output_root / "video-srt")
+    download_result = _run_small_video_with_srt(srt_source, output_root / "video-srt")
     cancellation_result = _run_live_cancellation(
         cancel_source,
         output_root / "cancel",
@@ -282,6 +287,12 @@ def run(output_root: Path) -> dict[str, Any]:
                 "title": channel.title,
                 "item_count": len(channel.items),
                 "elapsed_seconds": round(channel_elapsed, 3),
+            },
+            "srt_source": {
+                "kind": srt_source.kind.value,
+                "title": srt_source.title,
+                "item_count": len(srt_source.items),
+                "elapsed_seconds": round(srt_resolve_elapsed, 3),
             },
             "cancel_source": {
                 "kind": cancel_source.kind.value,
