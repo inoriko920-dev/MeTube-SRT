@@ -7,6 +7,9 @@ from time import sleep
 from types import TracebackType
 from typing import cast
 
+import pytest
+
+import metube_srt_desktop.worker.yt_dlp_runtime as ytdlp_runtime
 from metube_srt_desktop.application.dto.download import ResolveRequest
 from metube_srt_desktop.application.dto.worker_protocol import (
     WorkerCommandEnvelope,
@@ -232,3 +235,56 @@ def test_worker_classifies_network_failure_without_raw_exception() -> None:
     terminal = _events(output)[-1]
     assert terminal.payload["error_code"] == "network_error"
     assert "secret-value" not in output.getvalue()
+
+
+
+def test_download_progress_events_are_throttled_without_delaying_cancel(
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path,
+) -> None:
+    class BurstYoutubeDL(FakeYoutubeDL):
+        def extract_info(self, url: str, *, download: bool) -> object:
+            if not download:
+                return super().extract_info(url, download=download)
+
+            progress_hooks = self.options.get("progress_hooks")
+            assert isinstance(progress_hooks, list)
+            for hook in cast(list[object], progress_hooks):
+                typed_hook = _as_hook(hook)
+                for downloaded in range(1, 21):
+                    typed_hook(
+                        {
+                            "status": "downloading",
+                            "downloaded_bytes": downloaded,
+                            "total_bytes": 20,
+                            "speed": 10,
+                            "eta": 1,
+                        }
+                    )
+                typed_hook({"status": "finished"})
+
+            return {
+                "id": "abc",
+                "title": "Video",
+                "filepath": str(tmp_path / "Video [abc].mp4"),
+            }
+
+    monkeypatch.setattr(ytdlp_runtime, "monotonic", lambda: 100.0)
+
+    job = JobSpec(
+        job_id="job-throttle",
+        source_url="https://www.youtube.com/watch?v=abc",
+        output_directory=str(tmp_path),
+        quality=QualityPreset.BEST,
+        selected_subtitle=None,
+    )
+    command = WorkerCommandEnvelope.for_download(job, worker_run_id="run-throttle")
+    output = StringIO()
+
+    rc = run_worker(StringIO(command.to_json_line()), output, ydl_factory=BurstYoutubeDL)
+
+    assert rc == 0
+    progress_events = [
+        item for item in _events(output) if item.event_type is WorkerEventType.PROGRESS
+    ]
+    assert len(progress_events) == 1

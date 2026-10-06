@@ -3,6 +3,7 @@ from __future__ import annotations
 from collections.abc import Callable, Mapping, Sequence
 from pathlib import Path
 from threading import Event
+from time import monotonic
 from types import TracebackType
 from typing import Protocol, cast
 
@@ -13,6 +14,8 @@ from metube_srt_desktop.worker.yt_dlp_options import build_download_options, bui
 from metube_srt_desktop.worker.yt_dlp_resolver import map_resolved_source
 
 WorkerEmit = Callable[[WorkerEventType, Mapping[str, object]], None]
+
+_PROGRESS_EMIT_INTERVAL_SECONDS = 0.15
 
 
 class YoutubeDLSession(Protocol):
@@ -93,12 +96,24 @@ def _progress_hook(
     cancellation: Event,
     emit: WorkerEmit,
 ) -> Callable[[Mapping[str, object]], None]:
+    last_emit_at: float | None = None
+
     def hook(status: Mapping[str, object]) -> None:
+        nonlocal last_emit_at
+
         if cancellation.is_set():
             raise DownloadCancellationRequested
 
         state = status.get("status")
         if state == "downloading":
+            now = monotonic()
+            if (
+                last_emit_at is not None
+                and now - last_emit_at < _PROGRESS_EMIT_INTERVAL_SECONDS
+            ):
+                return
+            last_emit_at = now
+
             payload: dict[str, object] = {"phase": "download"}
             downloaded = _numeric(status.get("downloaded_bytes"))
             total = _numeric(status.get("total_bytes"))
