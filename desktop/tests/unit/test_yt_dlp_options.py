@@ -67,3 +67,10 @@ def test_subtitle_only_options_do_not_redownload_media() -> None:
     assert subtitle["writesubtitles"] is True
     assert subtitle["writeautomaticsub"] is False
     assert subtitle["subtitleslangs"] == ["id"]
+
+
+
+def test_resolve_options_tolerate_unavailable_collection_entries() -> None:
+    resolve = build_resolve_options()
+
+    assert resolve["ignoreerrors"] is True

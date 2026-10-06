@@ -24,6 +24,7 @@ def build_resolve_options() -> dict[str, object]:
         "no_warnings": True,
         "noprogress": True,
         "extract_flat": False,
+        "ignoreerrors": True,
         "extractor_args": {"youtube": {"skip": ["translated_subs"]}},
     }
 
