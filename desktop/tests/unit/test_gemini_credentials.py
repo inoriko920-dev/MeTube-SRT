@@ -79,7 +79,6 @@ def test_mark_active_status_updates_only_metadata() -> None:
     assert registry.active_secret() == raw_key
 
 
-
 class FailingProfiles(MemoryProfiles):
     def __init__(self, fail_on_save_number: int) -> None:
         super().__init__()
