@@ -161,7 +161,6 @@ def test_resolve_application_data_directory_has_no_fallback_when_writable(
     assert reported_fallback is None
 
 
-
 def test_run_desktop_rejects_busy_data_directory_before_runtime_build(
     monkeypatch: pytest.MonkeyPatch,
     tmp_path: Path,
