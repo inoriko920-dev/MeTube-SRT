@@ -112,6 +112,7 @@ class SQLiteQueueStorage(QueueStoragePort):
                         job_id,
                         queue_position,
                         source_url,
+                        display_title,
                         output_directory,
                         quality,
                         subtitle_language_code,
