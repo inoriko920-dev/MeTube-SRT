@@ -321,7 +321,6 @@ def test_initial_command_is_published_before_concurrent_cancel() -> None:
     assert commands[0].command_type.value == "download"
 
 
-
 def test_missing_terminal_stream_close_does_not_wait_forever() -> None:
     process = FakeProcess(
         event_line(WorkerEventType.READY, sequence=0),

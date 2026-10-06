@@ -93,7 +93,6 @@ def test_application_data_directory_falls_back_when_portable_is_not_writable(
     assert fallback.is_dir()
 
 
-
 def test_configure_portable_tools_exports_explicit_deno_path(
     monkeypatch: pytest.MonkeyPatch,
     tmp_path: Path,
