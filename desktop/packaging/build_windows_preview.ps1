@@ -152,6 +152,45 @@ Jangan memindahkan hanya file EXE. Pertahankan seluruh isi folder portable.
     }
     Compress-Archive -Path $StageRoot -DestinationPath $ZipPath -CompressionLevel Optimal
 
+    Write-Host "=== Verify ZIP archive after extraction ==="
+    $ArchiveProbeRoot = Join-Path $OutputRoot "archive-probe"
+    Remove-Item $ArchiveProbeRoot -Recurse -Force -ErrorAction SilentlyContinue
+    Expand-Archive -Path $ZipPath -DestinationPath $ArchiveProbeRoot -Force
+    $ArchiveStage = Join-Path $ArchiveProbeRoot "MeTube-SRT-Windows-x64-Preview"
+    $RequiredArchivePaths = @(
+        "MeTube-SRT.exe",
+        "worker\MeTube-SRT-Worker.exe",
+        "tools\deno.exe",
+        "tools\ffmpeg.exe",
+        "tools\ffprobe.exe",
+        "portable.flag",
+        "BACA_DULU.txt",
+        "BUILD_INFO.json",
+        "LICENSE"
+    )
+    foreach ($RelativePath in $RequiredArchivePaths) {
+        $Candidate = Join-Path $ArchiveStage $RelativePath
+        if (-not (Test-Path $Candidate)) {
+            throw "ZIP verification missing required path: $RelativePath"
+        }
+    }
+
+    $ArchiveSelfCheck = Start-Process -FilePath (Join-Path $ArchiveStage "MeTube-SRT.exe") `
+        -ArgumentList "--self-check" -Wait -PassThru
+    if ($ArchiveSelfCheck.ExitCode -ne 0) {
+        throw "Extracted ZIP desktop self-check failed with exit code $($ArchiveSelfCheck.ExitCode)."
+    }
+
+    $ArchiveCancelCommand = '{"schema_version":1,"command_type":"cancel","job_id":"archive-smoke","worker_run_id":"archive-smoke-run","payload":{}}'
+    $ArchiveWorkerOutput = @($ArchiveCancelCommand | & (Join-Path $ArchiveStage "worker\MeTube-SRT-Worker.exe"))
+    Assert-LastExitCode "Extracted ZIP worker smoke"
+    $ArchiveWorkerText = $ArchiveWorkerOutput -join "`n"
+    if ($ArchiveWorkerText -notmatch '"event_type":"ready"' -or $ArchiveWorkerText -notmatch '"event_type":"cancelled"') {
+        throw "Extracted ZIP worker smoke did not emit READY + CANCELLED."
+    }
+
+    Remove-Item $ArchiveProbeRoot -Recurse -Force -ErrorAction SilentlyContinue
+
     Write-Host "Windows preview build: OK"
     Write-Host "ZIP: $ZipPath"
 }

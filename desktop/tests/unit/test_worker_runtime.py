@@ -3,6 +3,7 @@ from __future__ import annotations
 from collections.abc import Callable, Mapping
 from io import StringIO
 from pathlib import Path
+from threading import Event
 from time import sleep
 from types import TracebackType
 from typing import cast
@@ -20,6 +21,10 @@ from metube_srt_desktop.application.dto.worker_protocol import (
 from metube_srt_desktop.domain.jobs import JobSpec, QualityPreset, SourceKind
 from metube_srt_desktop.domain.subtitles import SubtitleKind, SubtitleTrack
 from metube_srt_desktop.worker.runtime import run_worker
+from metube_srt_desktop.worker.yt_dlp_runtime import (
+    DownloadCancellationRequested,
+    download_job_live,
+)
 
 
 class FakeYoutubeDL:
@@ -476,3 +481,94 @@ def test_existing_srt_is_announced_with_media_without_warning(tmp_path: Path) ->
         str(tmp_path / "Video [abc].id.srt"),
     ]
     assert not any(event.event_type is WorkerEventType.WARNING for event in events)
+
+
+
+def test_download_supports_unicode_and_spaces_output_directory(tmp_path: Path) -> None:
+    output_directory = tmp_path / "Unduhan Uji ü ñ 空 白"
+    job = JobSpec(
+        job_id="job-unicode-output",
+        source_url="https://www.youtube.com/watch?v=abc",
+        output_directory=str(output_directory),
+        quality=QualityPreset.BEST,
+        selected_subtitle=None,
+    )
+    command = WorkerCommandEnvelope.for_download(job, worker_run_id="run-unicode-output")
+    output = StringIO()
+
+    rc = run_worker(StringIO(command.to_json_line()), output, ydl_factory=FakeYoutubeDL)
+
+    assert rc == 0
+    output_event = next(
+        event for event in _events(output) if event.event_type is WorkerEventType.OUTPUT_READY
+    )
+    output_path = Path(str(output_event.payload["path"]))
+    assert output_path.is_file()
+    assert output_path.parent == output_directory.resolve()
+
+
+def test_output_directory_that_is_a_file_fails_with_io_error(tmp_path: Path) -> None:
+    blocked_output = tmp_path / "not-a-directory"
+    blocked_output.write_text("blocked", encoding="utf-8")
+    job = JobSpec(
+        job_id="job-invalid-output",
+        source_url="https://www.youtube.com/watch?v=abc",
+        output_directory=str(blocked_output),
+        quality=QualityPreset.BEST,
+        selected_subtitle=None,
+    )
+    command = WorkerCommandEnvelope.for_download(job, worker_run_id="run-invalid-output")
+    output = StringIO()
+
+    rc = run_worker(StringIO(command.to_json_line()), output, ydl_factory=FakeYoutubeDL)
+
+    assert rc == 1
+    events = _events(output)
+    assert not any(event.event_type is WorkerEventType.OUTPUT_READY for event in events)
+    assert events[-1].event_type is WorkerEventType.FAILED
+    assert events[-1].payload["error_code"] == "io_error"
+
+
+def test_cancel_during_postprocessing_aborts_before_success(tmp_path: Path) -> None:
+    cancellation = Event()
+    emitted: list[WorkerEventType] = []
+
+    class CancelDuringPostprocessYoutubeDL(FakeYoutubeDL):
+        def extract_info(self, url: str, *, download: bool) -> object:
+            output_dir = self.options["paths"]
+            assert isinstance(output_dir, Mapping)
+            paths = cast(Mapping[str, object], output_dir)
+            home = paths["home"]
+            assert isinstance(home, str)
+            output_path = Path(home) / "Video [abc].mp4"
+            output_path.parent.mkdir(parents=True, exist_ok=True)
+            output_path.write_bytes(b"video")
+
+            cancellation.set()
+            hooks = self.options.get("postprocessor_hooks")
+            assert isinstance(hooks, list)
+            for hook in cast(list[object], hooks):
+                _as_hook(hook)({"status": "started"})
+            return {
+                "id": "abc",
+                "title": "Video",
+                "filepath": str(output_path),
+            }
+
+    job = JobSpec(
+        job_id="job-cancel-postprocess",
+        source_url="https://www.youtube.com/watch?v=abc",
+        output_directory=str(tmp_path),
+        quality=QualityPreset.BEST,
+        selected_subtitle=None,
+    )
+
+    with pytest.raises(DownloadCancellationRequested):
+        download_job_live(
+            job,
+            cancellation=cancellation,
+            emit=lambda event_type, payload: emitted.append(event_type),
+            ydl_factory=CancelDuringPostprocessYoutubeDL,
+        )
+
+    assert emitted == []
