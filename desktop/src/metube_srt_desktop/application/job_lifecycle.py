@@ -71,18 +71,20 @@ class DownloadJobRun:
                 raise RuntimeError("job updates can only be consumed once")
             self._updates_claimed = True
 
-        terminal_seen = False
+        terminal_event: WorkerEnvelope | None = None
         try:
             for event in self._worker.events():
                 if not self._is_current_event(event):
                     continue
-                snapshot = self._apply_event(event)
-                yield snapshot
-                if is_terminal_job_state(snapshot.state):
-                    terminal_seen = True
-                    break
+                if event.event_type in {
+                    WorkerEventType.SUCCEEDED,
+                    WorkerEventType.FAILED,
+                    WorkerEventType.CANCELLED,
+                }:
+                    terminal_event = event
+                    continue
+                yield self._apply_event(event)
         except DownloadWorkerError as exc:
-            terminal_seen = True
             if self.snapshot.state is JobState.CANCELLING:
                 yield self._mark_cancelled_after_worker_stop()
             else:
@@ -90,12 +92,16 @@ class DownloadJobRun:
                     "worker_process_failed",
                     _worker_error_message(exc, "Download worker process failed"),
                 )
+            return
 
-        if not terminal_seen:
-            yield self._mark_interrupted(
-                "worker_stream_ended",
-                "Download worker stream ended before a terminal event",
-            )
+        if terminal_event is not None:
+            yield self._apply_event(terminal_event)
+            return
+
+        yield self._mark_interrupted(
+            "worker_stream_ended",
+            "Download worker stream ended before a terminal event",
+        )
 
     def _is_current_event(self, event: WorkerEnvelope) -> bool:
         snapshot = self.snapshot

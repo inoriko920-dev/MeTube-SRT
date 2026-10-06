@@ -193,5 +193,3 @@ def test_invalid_success_payload_is_rejected() -> None:
         resolver.resolve(ResolveRequest("https://www.youtube.com/watch?v=abc"))
 
     assert caught.value.error_code == "invalid_resolve_payload"
-
-

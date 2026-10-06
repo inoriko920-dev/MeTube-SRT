@@ -246,7 +246,6 @@ def test_resolve_rejects_non_youtube_url_before_worker(qtbot: QtBot) -> None:
         queue.shutdown(wait=True)
 
 
-
 def test_window_close_requests_resolver_cancellation(qtbot: QtBot) -> None:
     class CancellableResolver(FakeResolver):
         def __init__(self) -> None:

@@ -238,3 +238,31 @@ def test_worker_stop_after_successful_cancel_request_is_cancelled() -> None:
     assert final.state is JobState.CANCELLED
     assert final.error_code is None
     assert final.warning_message == "Worker dihentikan paksa setelah permintaan pembatalan"
+
+
+
+class TailFailWorker:
+    def events(self) -> Iterable[WorkerEnvelope]:
+        yield event(WorkerEventType.READY, 0)
+        yield event(WorkerEventType.SUCCEEDED, 1)
+        raise DownloadWorkerError("worker exited after success event")
+
+    def request_cancel(self) -> None:
+        return
+
+
+def test_success_is_not_committed_until_worker_boundary_exits_cleanly() -> None:
+    run = DownloadJobRun(
+        make_job(),
+        worker_run_id="run-1",
+        worker=TailFailWorker(),
+    )
+
+    updates = list(run.updates())
+
+    assert [item.state for item in updates] == [
+        JobState.RUNNING,
+        JobState.INTERRUPTED,
+    ]
+    assert updates[-1].error_code == "worker_process_failed"
+    assert updates[-1].error_message == "worker exited after success event"
