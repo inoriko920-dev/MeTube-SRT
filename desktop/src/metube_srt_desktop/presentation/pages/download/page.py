@@ -128,8 +128,7 @@ class DownloadPage(QWidget):
 
     def show_resolved(self, title: str, *, item_count: int) -> None:
         self.state_title.setText("Siap ditambahkan ke antrian")
-        suffix = "video" if item_count == 1 else "video"
-        self.state_text.setText(f"{title} • {item_count} {suffix} ditemukan.")
+        self.state_text.setText(f"{title} • {item_count} video ditemukan.")
 
     def show_enqueuing(self) -> None:
         self.state_title.setText("Menambahkan ke antrian…")

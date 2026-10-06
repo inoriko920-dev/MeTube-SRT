@@ -1,7 +1,6 @@
 from __future__ import annotations
 
 from collections.abc import Iterable
-from pathlib import Path
 from threading import Event
 
 from pytestqt.qtbot import QtBot
